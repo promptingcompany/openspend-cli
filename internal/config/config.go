@@ -10,6 +10,10 @@ import (
 )
 
 var defaultBaseURL = "https://openspend.ai"
+var deprecatedDefaultBaseURLs = map[string]struct{}{
+	"http://192.0.0.2:5566": {},
+	"http://localhost:5555": {},
+}
 
 type MarketplaceConfig struct {
 	BaseURL        string `toml:"base_url"`
@@ -140,6 +144,9 @@ func applyDefaults(cfg *Config) {
 	def := defaults()
 
 	if cfg.Marketplace.BaseURL == "" {
+		cfg.Marketplace.BaseURL = def.Marketplace.BaseURL
+	} else if _, isDeprecatedDefault := deprecatedDefaultBaseURLs[cfg.Marketplace.BaseURL]; isDeprecatedDefault {
+		// Legacy versions wrote local development URLs as defaults. Normalize to the public endpoint.
 		cfg.Marketplace.BaseURL = def.Marketplace.BaseURL
 	}
 	if cfg.Marketplace.WhoAmIPath == "" {

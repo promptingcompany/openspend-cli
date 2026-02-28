@@ -8,7 +8,8 @@ Go-based CLI for OpenSpend marketplace onboarding and buyer setup.
 curl -fsSL https://raw.githubusercontent.com/promptingcompany/openspend-cli/main/install.sh | sh
 ```
 
-This installer currently builds from source using `go install`.
+The installer downloads the latest GitHub release binary for your OS/arch by
+default, and falls back to a source build only if binary download fails.
 
 ### Homebrew
 
@@ -18,10 +19,7 @@ brew install promptingcompany/tap/openspend
 
 ## Release automation (maintainers)
 
-- Homebrew publishing is handled by GoReleaser config in `.goreleaser.yaml`.
-- GitHub Action `.github/workflows/release.yaml` runs on tags matching `v*`.
-- Required repository secret:
-  - `HOMEBREW_TAP_GITHUB_TOKEN`: PAT with write access to `promptingcompany/homebrew-tap`.
+- GitHub Action `.github/workflows/release.yaml` runs when a GitHub release is published.
 
 ### Cutting a release candidate
 
@@ -30,7 +28,7 @@ git tag v0.1.0-rc.1
 git push origin v0.1.0-rc.1
 ```
 
-This triggers the CLI release workflow, publishes binaries, and updates `promptingcompany/homebrew-tap`.
+Publish a GitHub release for the tag to trigger binary build/upload automation.
 
 ## Commands
 

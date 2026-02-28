@@ -1,10 +1,13 @@
 name: Release
 
 on:
+  release:
+    types:
+      - published
   workflow_dispatch:
     inputs:
       tag:
-        description: "Existing semver tag to release (e.g. v0.1.0-rc.1)"
+        description: "Existing semver tag to build and upload (e.g. v0.1.0-rc.1)"
         required: true
         type: string
 
@@ -15,7 +18,7 @@ jobs:
   release:
     runs-on: ubuntu-latest
     env:
-      RELEASE_TAG: ${{ inputs.tag }}
+      RELEASE_TAG: ${{ github.event_name == 'release' && github.event.release.tag_name || inputs.tag }}
     steps:
       - name: Validate semver tag
         run: |
@@ -43,33 +46,6 @@ jobs:
             exit 1
           fi
 
-      - name: Guard against existing release for tag
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          set -euo pipefail
-          api="https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/tags/${RELEASE_TAG}"
-          code="$(curl -sS -o /tmp/release_check.json -w "%{http_code}" \
-            -H "Authorization: Bearer ${GITHUB_TOKEN}" \
-            -H "Accept: application/vnd.github+json" \
-            "$api")"
-          if [ "$code" = "200" ]; then
-            echo "error: release already exists for tag '${RELEASE_TAG}'." >&2
-            echo "delete it first (or use a new tag), then rerun workflow_dispatch." >&2
-            cat /tmp/release_check.json >&2
-            exit 1
-          fi
-
-      - name: Validate release secrets
-        env:
-          HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
-        run: |
-          if [ -z "$HOMEBREW_TAP_GITHUB_TOKEN" ]; then
-            echo "error: missing HOMEBREW_TAP_GITHUB_TOKEN secret" >&2
-            echo "set repository secret HOMEBREW_TAP_GITHUB_TOKEN with write access to promptingcompany/homebrew-tap" >&2
-            exit 1
-          fi
-
       - name: Checkout
         uses: actions/checkout@v4
         with:
@@ -86,13 +62,25 @@ jobs:
         run: |
           echo "CLI_VERSION=${RELEASE_TAG}" >> "$GITHUB_ENV"
 
-      - name: Run GoReleaser
+      - name: Build artifacts with GoReleaser
         uses: goreleaser/goreleaser-action@v6
         with:
           distribution: goreleaser
           version: "~> v2"
-          args: release --clean
+          args: build --clean
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
           CLI_VERSION: ${{ env.CLI_VERSION }}
+
+      - name: Upload artifacts to GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          files=(dist/*.tar.gz dist/checksums.txt)
+          if [ "${#files[@]}" -eq 0 ]; then
+            echo "error: no release artifacts found in dist/" >&2
+            ls -la dist >&2 || true
+            exit 1
+          fi
+          gh release upload "$RELEASE_TAG" "${files[@]}" --repo "$GITHUB_REPOSITORY" --clobber

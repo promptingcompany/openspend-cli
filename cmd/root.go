@@ -36,6 +36,7 @@ func NewRootCmd() *cobra.Command {
 	root.AddCommand(newAgentCmd())
 	root.AddCommand(newOnboardingCmd())
 	root.AddCommand(newWhoAmICmd())
+	root.AddCommand(newUpdateCmd())
 	root.AddCommand(newVersionCmd())
 
 	return root

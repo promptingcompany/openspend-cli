@@ -11,10 +11,41 @@ curl -fsSL https://raw.githubusercontent.com/promptingcompany/openspend-cli/main
 The installer downloads the latest GitHub release binary for your OS/arch by
 default, and falls back to a source build only if binary download fails.
 
+### Update Existing Install
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/promptingcompany/openspend-cli/main/update.sh | sh
+```
+
+The updater installs into the same directory as your current `openspend`
+binary when possible, then replaces it with the requested version.
+
+### Install/Update Options
+
+- `OPENSPEND_VERSION`:
+  - `latest` (default), or a specific tag/version like `v0.1.0-rc.10` / `0.1.0-rc.10`
+- `OPENSPEND_INSTALL_BIN_DIR`:
+  - install/update target directory (default `~/.local/bin`)
+- `OPENSPEND_REPO_SLUG`:
+  - GitHub repo slug used for release downloads (default `promptingcompany/openspend-cli`)
+
+Examples:
+
+```bash
+OPENSPEND_VERSION=v0.1.0-rc.10 curl -fsSL https://raw.githubusercontent.com/promptingcompany/openspend-cli/main/install.sh | sh
+OPENSPEND_INSTALL_BIN_DIR="$HOME/bin" curl -fsSL https://raw.githubusercontent.com/promptingcompany/openspend-cli/main/update.sh | sh
+```
+
 ### Homebrew
 
 ```bash
 brew install promptingcompany/tap/openspend
+```
+
+If `openspend` is not found after install, add this to your shell profile:
+
+```bash
+export PATH="$HOME/.local/bin:$PATH"
 ```
 
 ## Release automation (maintainers)
@@ -37,6 +68,7 @@ Publish a GitHub release for the tag to trigger binary build/upload automation.
 - `openspend agent create --external-key buyer-agent-1 --display-name "Buyer Agent"`
 - `openspend onboarding buyer-quickstart`
 - `openspend whoami`
+- `openspend update`
 
 ## Notes
 

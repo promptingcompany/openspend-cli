@@ -5,7 +5,7 @@ Go-based CLI for OpenSpend marketplace onboarding and buyer setup.
 ## Install
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/promptingcompany/openspend-cli/main/install.sh | sh
+curl -fsSL https://openspend.ai/install | sh
 ```
 
 The installer downloads the latest GitHub release binary for your OS/arch by
@@ -13,12 +13,11 @@ default, and falls back to a source build only if binary download fails.
 
 ### Update Existing Install
 
-```bash
-curl -fsSL https://raw.githubusercontent.com/promptingcompany/openspend-cli/main/update.sh | sh
-```
+Use the built-in updater:
 
-The updater installs into the same directory as your current `openspend`
-binary when possible, then replaces it with the requested version.
+```bash
+openspend update
+```
 
 ### Install/Update Options
 
@@ -32,8 +31,9 @@ binary when possible, then replaces it with the requested version.
 Examples:
 
 ```bash
-OPENSPEND_VERSION=v0.1.0-rc.10 curl -fsSL https://raw.githubusercontent.com/promptingcompany/openspend-cli/main/install.sh | sh
-OPENSPEND_INSTALL_BIN_DIR="$HOME/bin" curl -fsSL https://raw.githubusercontent.com/promptingcompany/openspend-cli/main/update.sh | sh
+OPENSPEND_VERSION=v0.1.0-rc.10 curl -fsSL https://openspend.ai/install | sh
+OPENSPEND_INSTALL_BIN_DIR="$HOME/bin" curl -fsSL https://openspend.ai/install | sh
+openspend update --version v0.1.0-rc.10
 ```
 
 ### Homebrew

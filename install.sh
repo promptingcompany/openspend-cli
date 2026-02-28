@@ -28,8 +28,10 @@ echo "Building openspend CLI..."
 mkdir -p "$INSTALL_BIN_DIR"
 (
 	cd "$TMP_DIR/openspend-cli"
-	GOBIN="$INSTALL_BIN_DIR" go install .
+	go build -o "$INSTALL_BIN_DIR/openspend" .
 )
+
+chmod +x "$INSTALL_BIN_DIR/openspend"
 
 echo "Installed openspend to $INSTALL_BIN_DIR/openspend"
 

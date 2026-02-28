@@ -14,8 +14,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/spf13/cobra"
 	"github.com/promptingcompany/openspend-cli/internal/config"
+	"github.com/spf13/cobra"
 )
 
 func newAuthCmd() *cobra.Command {

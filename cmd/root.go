@@ -6,9 +6,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/spf13/cobra"
 	"github.com/promptingcompany/openspend-cli/internal/api"
 	"github.com/promptingcompany/openspend-cli/internal/config"
+	"github.com/spf13/cobra"
 )
 
 var baseURLOverride string

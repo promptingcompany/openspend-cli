@@ -6,10 +6,10 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/spf13/cobra"
 	"github.com/promptingcompany/openspend-cli/internal/api"
 	"github.com/promptingcompany/openspend-cli/internal/config"
 	"github.com/promptingcompany/openspend-cli/internal/tui"
+	"github.com/spf13/cobra"
 )
 
 func newOnboardingCmd() *cobra.Command {

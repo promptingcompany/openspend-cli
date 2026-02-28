@@ -68,7 +68,7 @@ jobs:
         with:
           distribution: goreleaser
           version: "~> v2"
-          args: build --clean
+          args: release --clean --skip=publish,announce,validate
         env:
           CLI_VERSION: ${{ env.CLI_VERSION }}
 

@@ -63,12 +63,18 @@ jobs:
         run: |
           echo "CLI_VERSION=${RELEASE_TAG}" >> "$GITHUB_ENV"
 
+      - name: Prepare local release notes
+        run: |
+          cat > /tmp/release-notes.md << 'EOF'
+          Automated release artifacts for ${RELEASE_TAG}.
+          EOF
+
       - name: Build artifacts with GoReleaser
         uses: goreleaser/goreleaser-action@v6
         with:
           distribution: goreleaser
           version: "~> v2"
-          args: release --clean --skip=publish,announce,validate
+          args: release --clean --skip=publish,announce,validate --release-notes /tmp/release-notes.md
         env:
           CLI_VERSION: ${{ env.CLI_VERSION }}
 

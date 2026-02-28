@@ -1,9 +1,6 @@
 name: Release
 
 on:
-  push:
-    tags:
-      - "v*"
   workflow_dispatch:
     inputs:
       tag:
@@ -18,7 +15,7 @@ jobs:
   release:
     runs-on: ubuntu-latest
     env:
-      RELEASE_TAG: ${{ github.event_name == 'push' && github.ref_name || inputs.tag }}
+      RELEASE_TAG: ${{ inputs.tag }}
     steps:
       - name: Validate semver tag
         run: |
@@ -29,6 +26,39 @@ jobs:
               exit 1
               ;;
           esac
+
+      - name: Ensure tag exists on remote
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          api="https://api.github.com/repos/${GITHUB_REPOSITORY}/git/ref/tags/${RELEASE_TAG}"
+          code="$(curl -sS -o /tmp/tag_check.json -w "%{http_code}" \
+            -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            "$api")"
+          if [ "$code" != "200" ]; then
+            echo "error: tag '${RELEASE_TAG}' does not exist in ${GITHUB_REPOSITORY}" >&2
+            cat /tmp/tag_check.json >&2
+            exit 1
+          fi
+
+      - name: Guard against existing release for tag
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          api="https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/tags/${RELEASE_TAG}"
+          code="$(curl -sS -o /tmp/release_check.json -w "%{http_code}" \
+            -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            "$api")"
+          if [ "$code" = "200" ]; then
+            echo "error: release already exists for tag '${RELEASE_TAG}'." >&2
+            echo "delete it first (or use a new tag), then rerun workflow_dispatch." >&2
+            cat /tmp/release_check.json >&2
+            exit 1
+          fi
 
       - name: Validate release secrets
         env:

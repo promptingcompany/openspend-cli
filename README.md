@@ -1,0 +1,2 @@
+# openspend-cli
+OpenSpend CLI

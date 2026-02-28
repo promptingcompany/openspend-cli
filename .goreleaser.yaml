@@ -1,0 +1,59 @@
+version: 2
+
+project_name: openspend
+
+builds:
+  - id: openspend
+    main: .
+    binary: openspend
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+      - linux
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w -X main.version={{ if .Env.CLI_VERSION }}{{ .Env.CLI_VERSION }}{{ else }}{{ .Version }}{{ end }}
+
+archives:
+  - id: openspend
+    ids:
+      - openspend
+    formats:
+      - tar.gz
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- .Version }}_
+      {{- .Os }}_
+      {{- .Arch }}
+
+checksum:
+  name_template: checksums.txt
+
+changelog:
+  sort: asc
+  use: github-native
+
+brews:
+  - name: openspend
+    repository:
+      owner: promptingcompany
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    directory: Formula
+    homepage: https://github.com/promptingcompany/openspend-cli
+    description: OpenSpend CLI for buyer onboarding and service usage
+    commit_author:
+      name: promptingcompany-bot
+      email: engineering@promptingco.com
+    install: |
+      bin.install "openspend"
+    test: |
+      system "#{bin}/openspend", "version"
+
+release:
+  draft: false
+  prerelease: auto
+  name_template: "openspend-cli {{ if .Env.CLI_VERSION }}{{ .Env.CLI_VERSION }}{{ else }}{{ .Version }}{{ end }}"

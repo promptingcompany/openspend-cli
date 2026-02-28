@@ -51,6 +51,7 @@ func mustLoadConfig() config.Config {
 		fmt.Fprintf(os.Stderr, "failed to load config: %v\n", err)
 		os.Exit(1)
 	}
+	config.ApplyEnvOverrides(&cfg)
 	if baseURLOverride != "" {
 		cfg.Marketplace.BaseURL = baseURLOverride
 	}

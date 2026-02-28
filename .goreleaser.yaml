@@ -15,7 +15,7 @@ builds:
       - amd64
       - arm64
     ldflags:
-      - -s -w -X main.version={{ if .Env.CLI_VERSION }}{{ .Env.CLI_VERSION }}{{ else }}{{ .Version }}{{ end }}
+      - -s -w -X main.version={{ if .Env.CLI_VERSION }}{{ .Env.CLI_VERSION }}{{ else }}{{ .Version }}{{ end }} -X github.com/promptingcompany/openspend-cli/internal/config.defaultBaseURL={{ if .Env.OPENSPEND_DEFAULT_BASE_URL }}{{ .Env.OPENSPEND_DEFAULT_BASE_URL }}{{ else }}https://openspend.ai{{ end }}
 
 archives:
   - id: openspend

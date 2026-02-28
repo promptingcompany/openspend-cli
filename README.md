@@ -47,14 +47,21 @@ This triggers the CLI release workflow, publishes binaries, and updates `prompti
 - Use `-y` to open without prompt, or `-n` to skip opening and copy URL manually.
 - For automated/sandbox browser flows, set `--callback-host` (for example `192.0.0.2`) so callback is reachable.
 - CLI stores settings and session token in `~/.config/openspend/config.toml` (TOML codec).
-- Default marketplace URL: `http://localhost:5555`.
+- Default marketplace URL: `https://openspend.ai`.
 - Override per command with `--base-url`.
+- Runtime env overrides:
+  - `OPENSPEND_MARKETPLACE_BASE_URL` (or legacy `OPENSPEND_BASE_URL`)
+  - `OPENSPEND_MARKETPLACE_WHOAMI_PATH`
+  - `OPENSPEND_MARKETPLACE_POLICY_INIT_PATH`
+  - `OPENSPEND_MARKETPLACE_AGENT_PATH`
+  - `OPENSPEND_AUTH_BROWSER_LOGIN_PATH`
+  - `OPENSPEND_AUTH_SESSION_COOKIE`
 
 ## Config
 
 ```toml
 [marketplace]
-base_url = "http://localhost:5555"
+base_url = "https://openspend.ai"
 whoami_path = "/api/cli/whoami"
 policy_init_path = "/api/cli/policy/init"
 agent_path = "/api/cli/agent"

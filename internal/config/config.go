@@ -9,9 +9,7 @@ import (
 	"github.com/pelletier/go-toml/v2"
 )
 
-const (
-	defaultBaseURL = "http://localhost:5555"
-)
+var defaultBaseURL = "https://openspend.ai"
 
 type MarketplaceConfig struct {
 	BaseURL        string `toml:"base_url"`
@@ -66,16 +64,20 @@ func Load() (Config, error) {
 		if errors.Is(err, os.ErrNotExist) {
 			legacyToml, legacyTomlErr := loadLegacyToml()
 			if legacyTomlErr == nil {
+				ApplyEnvOverrides(&legacyToml)
 				applyDefaults(&legacyToml)
 				_ = Save(legacyToml)
 				return legacyToml, nil
 			}
 			legacy, legacyErr := loadLegacyJSON()
 			if legacyErr == nil {
+				ApplyEnvOverrides(&legacy)
 				applyDefaults(&legacy)
 				_ = Save(legacy)
 				return legacy, nil
 			}
+			ApplyEnvOverrides(&cfg)
+			applyDefaults(&cfg)
 			return cfg, nil
 		}
 		return Config{}, err
@@ -84,6 +86,7 @@ func Load() (Config, error) {
 	if err := toml.Unmarshal(data, &cfg); err != nil {
 		return Config{}, err
 	}
+	ApplyEnvOverrides(&cfg)
 	applyDefaults(&cfg)
 	return cfg, nil
 }
@@ -104,6 +107,33 @@ func Save(cfg Config) error {
 		return err
 	}
 	return os.WriteFile(path, data, 0o600)
+}
+
+// ApplyEnvOverrides applies runtime environment overrides to loaded config.
+func ApplyEnvOverrides(cfg *Config) {
+	if cfg == nil {
+		return
+	}
+	if v := os.Getenv("OPENSPEND_MARKETPLACE_BASE_URL"); v != "" {
+		cfg.Marketplace.BaseURL = v
+	} else if v := os.Getenv("OPENSPEND_BASE_URL"); v != "" {
+		cfg.Marketplace.BaseURL = v
+	}
+	if v := os.Getenv("OPENSPEND_MARKETPLACE_WHOAMI_PATH"); v != "" {
+		cfg.Marketplace.WhoAmIPath = v
+	}
+	if v := os.Getenv("OPENSPEND_MARKETPLACE_POLICY_INIT_PATH"); v != "" {
+		cfg.Marketplace.PolicyInitPath = v
+	}
+	if v := os.Getenv("OPENSPEND_MARKETPLACE_AGENT_PATH"); v != "" {
+		cfg.Marketplace.AgentPath = v
+	}
+	if v := os.Getenv("OPENSPEND_AUTH_BROWSER_LOGIN_PATH"); v != "" {
+		cfg.Auth.BrowserLoginPath = v
+	}
+	if v := os.Getenv("OPENSPEND_AUTH_SESSION_COOKIE"); v != "" {
+		cfg.Auth.SessionCookie = v
+	}
 }
 
 func applyDefaults(cfg *Config) {

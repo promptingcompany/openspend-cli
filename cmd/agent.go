@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/promptingcompany/openspend-cli/internal/api"
 	"github.com/spf13/cobra"
@@ -27,8 +28,11 @@ func newAgentCreateCmd() *cobra.Command {
 		Use:   "create",
 		Short: "Create a buyer subject and bind to policy",
 		RunE: func(cmd *cobra.Command, _ []string) error {
+			generatedExternalKey := false
 			if strings.TrimSpace(externalKey) == "" {
-				return fmt.Errorf("--external-key is required")
+				externalKey = fmt.Sprintf("buyer-agent-%d", time.Now().Unix())
+				generatedExternalKey = true
+				fmt.Fprintf(cmd.OutOrStdout(), "No --external-key provided; using generated key: %s\n", externalKey)
 			}
 			cfg := mustLoadConfig()
 			client := clientFromConfig(cfg)
@@ -48,16 +52,18 @@ func newAgentCreateCmd() *cobra.Command {
 
 			fmt.Fprintf(
 				cmd.OutOrStdout(),
-				"Agent subject ready: %s (%s), bound policy=%s\n",
+				"Agent subject ready: %s (id=%s external_key=%s generated_external_key=%t), bound policy=%s\n",
 				res.Subject.DisplayName,
 				res.Subject.ID,
+				res.Subject.ExternalKey,
+				generatedExternalKey,
 				res.PolicyID,
 			)
 			return nil
 		},
 	}
 
-	cmd.Flags().StringVar(&externalKey, "external-key", "", "Subject external key")
+	cmd.Flags().StringVar(&externalKey, "external-key", "", "Subject external key (auto-generated if omitted)")
 	cmd.Flags().StringVar(&displayName, "display-name", "", "Display name")
 	cmd.Flags().StringVar(&kind, "kind", "agent", "Subject kind")
 	cmd.Flags().StringVar(&policyID, "policy-id", "", "Optional policy ID override")

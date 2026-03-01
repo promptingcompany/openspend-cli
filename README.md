@@ -70,6 +70,40 @@ Publish a GitHub release for the tag to trigger binary build/upload automation.
 - `openspend whoami`
 - `openspend update`
 
+## Local backend compatibility test
+
+Run full CLI integration checks against local marketplace backend:
+
+```bash
+make cli-test-local-openspend
+```
+
+What this does:
+
+- Verifies `/api/cli/*` routes are reachable at `http://127.0.0.1:5555`
+- Creates/signs in a local test user and obtains a session cookie from real auth HTTP endpoints
+- Runs `policy init`, `agent create`, and `whoami` through the compiled CLI binary
+- Uses an isolated temporary `HOME` so your real CLI config is not modified
+
+## Real backend integration test
+
+Run the same flow against any real backend (for example staging/prod):
+
+```bash
+OPENSPEND_MARKETPLACE_BASE_URL="https://openspend.ai" \
+OPENSPEND_TEST_EMAIL="you@example.com" \
+OPENSPEND_TEST_PASSWORD="***" \
+make cli-test-real-backend
+```
+
+Configurable environment variables:
+
+- `OPENSPEND_MARKETPLACE_BASE_URL` (default `https://openspend.ai`)
+- `OPENSPEND_TEST_EMAIL` and `OPENSPEND_TEST_PASSWORD` (used for sign-in)
+- `OPENSPEND_SESSION_TOKEN` and optional `OPENSPEND_SESSION_COOKIE` (skip sign-in and use an existing session)
+- `OPENSPEND_ALLOW_SIGNUP` (`1` to auto-create user before sign-in; default `0`)
+- `OPENSPEND_INTEGRATION_WRITE` (`1` to run write path: policy + agent; set `0` for read-only whoami)
+
 ## Notes
 
 - `openspend auth login` opens the marketplace sign-in page in your browser and captures a local callback.

@@ -1,4 +1,4 @@
-.PHONY: cli-build cli-run cli-clean cli-test-loop
+.PHONY: cli-build cli-run cli-clean cli-test-loop cli-test-local-openspend cli-test-real-backend
 
 CLI_BIN_DIR := bin
 CLI_BIN := $(CLI_BIN_DIR)/openspend
@@ -22,3 +22,9 @@ cli-test-loop: cli-build
 	./$(CLI_BIN) auth login --help
 	./$(CLI_BIN) onboarding buyer-quickstart --help
 	./$(CLI_BIN) whoami --help
+
+cli-test-local-openspend: cli-build
+	OPENSPEND_MARKETPLACE_BASE_URL=$${OPENSPEND_MARKETPLACE_BASE_URL:-http://127.0.0.1:5555} OPENSPEND_ALLOW_SIGNUP=1 OPENSPEND_TEST_EMAIL=$${OPENSPEND_TEST_EMAIL:-admin@example.com} OPENSPEND_TEST_PASSWORD=$${OPENSPEND_TEST_PASSWORD:-changeme123} ./scripts/test-real-backend.sh
+
+cli-test-real-backend: cli-build
+	./scripts/test-real-backend.sh

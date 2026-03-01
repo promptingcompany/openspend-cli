@@ -18,6 +18,9 @@ func newWhoAmICmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			if err := persistAuthFromClient(&cfg, client); err != nil {
+				return err
+			}
 
 			email := ""
 			if res.User.Email != nil {

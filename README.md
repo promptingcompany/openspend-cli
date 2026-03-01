@@ -77,6 +77,7 @@ Publish a GitHub release for the tag to trigger binary build/upload automation.
 - Use `-y` to open without prompt, or `-n` to skip opening and copy URL manually.
 - For automated/sandbox browser flows, set `--callback-host` (for example `192.0.0.2`) so callback is reachable.
 - CLI stores settings and session token in `~/.config/openspend/config.toml` (TOML codec).
+- CLI now also stores session expiry metadata and refreshes session state automatically during authenticated calls.
 - Default marketplace URL: `https://openspend.ai`.
 - Override per command with `--base-url`.
 - Runtime env overrides:
@@ -86,6 +87,7 @@ Publish a GitHub release for the tag to trigger binary build/upload automation.
   - `OPENSPEND_MARKETPLACE_AGENT_PATH`
   - `OPENSPEND_AUTH_BROWSER_LOGIN_PATH`
   - `OPENSPEND_AUTH_SESSION_COOKIE`
+  - `OPENSPEND_AUTH_SESSION_REFRESH_PATH`
 
 ## Config
 
@@ -99,5 +101,6 @@ agent_path = "/api/cli/agent"
 [auth]
 browser_login_path = "/api/cli/auth/login"
 session_cookie = "better-auth.session_token"
+session_refresh_path = "/api/auth/get-session"
 session_token = ""
 ```

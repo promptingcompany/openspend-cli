@@ -122,6 +122,9 @@ func runQuickstart(
 	if err != nil {
 		return err
 	}
+	if err := persistAuthFromClient(&cfg, client); err != nil {
+		return err
+	}
 
 	fmt.Fprintf(cmd.OutOrStdout(), "Onboarding complete for user %s. Subjects: %d\n", who.User.ID, len(who.Subjects))
 	fmt.Fprintln(cmd.OutOrStdout(), "Next: run `openspend whoami` or start discovery/use-service flows.")
@@ -189,6 +192,11 @@ func runQuickstartTUI(
 		program.Send(tui.StepUpdate(3, tui.StepRunning, "verifying context"))
 		who, err := client.WhoAmI(cmd.Context())
 		if err != nil {
+			program.Send(tui.StepUpdate(3, tui.StepError, err.Error()))
+			program.Send(tui.Done())
+			return
+		}
+		if err := persistAuthFromClient(&cfg, client); err != nil {
 			program.Send(tui.StepUpdate(3, tui.StepError, err.Error()))
 			program.Send(tui.Done())
 			return

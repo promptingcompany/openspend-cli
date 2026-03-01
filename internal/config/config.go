@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/pelletier/go-toml/v2"
 )
@@ -23,9 +24,11 @@ type MarketplaceConfig struct {
 }
 
 type AuthConfig struct {
-	BrowserLoginPath string `toml:"browser_login_path"`
-	SessionToken     string `toml:"session_token,omitempty"`
-	SessionCookie    string `toml:"session_cookie"`
+	BrowserLoginPath   string    `toml:"browser_login_path"`
+	SessionToken       string    `toml:"session_token,omitempty"`
+	SessionCookie      string    `toml:"session_cookie"`
+	SessionExpiresAt   time.Time `toml:"session_expires_at,omitempty"`
+	SessionRefreshPath string    `toml:"session_refresh_path"`
 }
 
 type Config struct {
@@ -42,8 +45,9 @@ func defaults() Config {
 			AgentPath:      "/api/cli/agent",
 		},
 		Auth: AuthConfig{
-			BrowserLoginPath: "/api/cli/auth/login",
-			SessionCookie:    "better-auth.session_token",
+			BrowserLoginPath:   "/api/cli/auth/login",
+			SessionCookie:      "better-auth.session_token",
+			SessionRefreshPath: "/api/auth/get-session",
 		},
 	}
 }
@@ -138,6 +142,9 @@ func ApplyEnvOverrides(cfg *Config) {
 	if v := os.Getenv("OPENSPEND_AUTH_SESSION_COOKIE"); v != "" {
 		cfg.Auth.SessionCookie = v
 	}
+	if v := os.Getenv("OPENSPEND_AUTH_SESSION_REFRESH_PATH"); v != "" {
+		cfg.Auth.SessionRefreshPath = v
+	}
 }
 
 func applyDefaults(cfg *Config) {
@@ -163,6 +170,9 @@ func applyDefaults(cfg *Config) {
 	}
 	if cfg.Auth.SessionCookie == "" {
 		cfg.Auth.SessionCookie = def.Auth.SessionCookie
+	}
+	if cfg.Auth.SessionRefreshPath == "" {
+		cfg.Auth.SessionRefreshPath = def.Auth.SessionRefreshPath
 	}
 }
 

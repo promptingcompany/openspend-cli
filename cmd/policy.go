@@ -56,6 +56,9 @@ func newPolicyInitCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			if err := persistAuthFromClient(&cfg, client); err != nil {
+				return err
+			}
 
 			state := "updated"
 			if res.Created {

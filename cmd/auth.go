@@ -54,8 +54,18 @@ func newAuthLoginCmd() *cobra.Command {
 				return err
 			}
 
+			client := clientFromConfig(cfg)
+			client.SetSessionToken(token)
+			// Best effort: fetch session metadata/expiry from Better Auth endpoint.
+			if err := client.SyncSession(cmd.Context()); err != nil {
+				fmt.Fprintf(
+					cmd.OutOrStdout(),
+					"Warning: could not sync session metadata: %v\n",
+					err,
+				)
+			}
 			cfg.Auth.SessionToken = token
-			if err := config.Save(cfg); err != nil {
+			if err := persistAuthFromClient(&cfg, client); err != nil {
 				return err
 			}
 			fmt.Fprintf(cmd.OutOrStdout(), "Logged in successfully against %s\n", cfg.Marketplace.BaseURL)
@@ -97,7 +107,11 @@ func runBrowserLogin(
 		return "", err
 	}
 
-	tokenCh := make(chan string, 1)
+	type loginCallbackResult struct {
+		token      string
+		cookieName string
+	}
+	tokenCh := make(chan loginCallbackResult, 1)
 	errCh := make(chan error, 1)
 
 	mux := http.NewServeMux()
@@ -112,7 +126,10 @@ func runBrowserLogin(
 		html := `<!doctype html><html><body><h3>OpenSpend CLI authenticated.</h3><p>You can return to terminal.</p></body></html>`
 		w.Header().Set("Content-Type", "text/html")
 		_, _ = w.Write([]byte(html))
-		tokenCh <- token
+		tokenCh <- loginCallbackResult{
+			token:      token,
+			cookieName: r.URL.Query().Get("session_cookie"),
+		}
 	})
 
 	srv := &http.Server{Handler: mux, ReadHeaderTimeout: 5 * time.Second}
@@ -135,8 +152,11 @@ func runBrowserLogin(
 
 	timeout := time.Duration(timeoutSeconds) * time.Second
 	select {
-	case token := <-tokenCh:
-		return token, nil
+	case loginRes := <-tokenCh:
+		if loginRes.cookieName != "" {
+			cfg.Auth.SessionCookie = loginRes.cookieName
+		}
+		return loginRes.token, nil
 	case err := <-errCh:
 		return "", err
 	case <-time.After(timeout):

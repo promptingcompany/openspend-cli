@@ -42,6 +42,9 @@ func newAgentCreateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			if err := persistAuthFromClient(&cfg, client); err != nil {
+				return err
+			}
 
 			fmt.Fprintf(
 				cmd.OutOrStdout(),

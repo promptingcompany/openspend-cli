@@ -20,6 +20,7 @@ Use `setup-services` first whenever install/update/auth/payment setup is needed:
 1. Ensure CLI is ready.
 
 ```bash
+openspend update
 openspend version
 openspend whoami
 ```

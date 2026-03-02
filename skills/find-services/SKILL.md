@@ -7,6 +7,14 @@ description: Find and shortlist third-party services using OpenSpend CLI marketp
 
 Use OpenSpend CLI to discover external services. Assume account/login policy automatically applies reliability and spending guardrails.
 
+## CLI install/update quick start
+
+Before running service discovery, ensure `openspend` is installed and current:
+
+- Install with `curl`: `curl -fsSL https://openspend.ai/install | sh`
+- Install with Homebrew: `brew install promptingcompany/tap/openspend`
+- If already installed, update directly: `openspend update`
+
 ## Workflow
 
 1. Ensure CLI is ready.

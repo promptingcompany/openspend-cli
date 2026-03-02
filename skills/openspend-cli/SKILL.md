@@ -1,27 +1,57 @@
 ---
 name: using-openspend-cli
-description: Guides installation, authentication, and buyer onboarding with openspend-cli. Use when asked how to install openspend, log in, initialize buyer policy, create a buyer agent, run buyer onboarding, check identity, or update the CLI.
+description: Guides end-to-end setup and usage of openspend-cli. Use when asked to install openspend via curl or Homebrew, authenticate, verify identity, initialize dashboard policy, create or update dashboard agents, run search, or update the CLI.
 ---
 
 # Using openspend-cli
 
-Run the installer script first:
+Install `openspend` with one of these methods.
+
+Method 1 (`curl` installer):
 
 ```bash
-bash scripts/install.sh
+curl -fsSL https://openspend.ai/install | sh
 ```
 
-Then run the default onboarding workflow:
+Method 2 (`homebrew`):
+
+```bash
+brew install promptingcompany/tap/openspend
+```
+
+Verify install:
+
+```bash
+openspend version
+```
+
+Authenticate:
 
 ```bash
 openspend auth login
-openspend policy init --buyer
-openspend agent create --external-key buyer-agent-1 --display-name "Buyer Agent"
-openspend onboarding buyer-quickstart
 openspend whoami
 ```
 
-## Update
+Set up dashboard policy and agent:
+
+```bash
+openspend dashboard policy init --buyer
+openspend dashboard agent create --external-key buyer-agent-1 --display-name "Buyer Agent"
+```
+
+Update an existing agent:
+
+```bash
+openspend dashboard agent update --external-key buyer-agent-1 --display-name "Buyer Agent v2"
+```
+
+Search services:
+
+```bash
+openspend search "stable diffusion image generation" --limit 5
+```
+
+Update CLI:
 
 ```bash
 openspend update

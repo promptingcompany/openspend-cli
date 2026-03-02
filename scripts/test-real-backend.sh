@@ -107,6 +107,7 @@ base_url = "${OPENSPEND_MARKETPLACE_BASE_URL}"
 whoami_path = "/api/cli/whoami"
 policy_init_path = "/api/cli/policy/init"
 agent_path = "/api/cli/agent"
+search_path = "/api/search"
 
 [auth]
 browser_login_path = "/api/cli/auth/login"
@@ -142,14 +143,14 @@ policy_name="CLI Integration Policy ${run_id}"
 agent_key="buyer-agent-int-${run_id}"
 agent_name="CLI Integration Agent ${run_id}"
 
-echo "[6/7] Running write-path checks (policy init + agent create)"
-policy_output="$(run_cli policy init --buyer --name "${policy_name}" --description "CLI integration policy ${run_id}")"
+echo "[6/7] Running write-path checks (dashboard policy init + dashboard agent create)"
+policy_output="$(run_cli dashboard policy init --buyer --name "${policy_name}" --description "CLI integration policy ${run_id}")"
 printf '%s\n' "${policy_output}" | grep -Eq 'Buyer policy (created|updated):' || {
   printf '%s\n' "${policy_output}" >&2
   fail "policy init output did not match expected success format"
 }
 
-agent_output="$(run_cli agent create --external-key "${agent_key}" --display-name "${agent_name}")"
+agent_output="$(run_cli dashboard agent create --external-key "${agent_key}" --display-name "${agent_name}")"
 printf '%s\n' "${agent_output}" | grep -F "Agent subject ready:" >/dev/null || {
   printf '%s\n' "${agent_output}" >&2
   fail "agent create did not report success"

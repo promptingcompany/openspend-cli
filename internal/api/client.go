@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -23,6 +24,7 @@ type Options struct {
 	WhoAmIPath         string
 	PolicyInitPath     string
 	AgentPath          string
+	SearchPath         string
 	BrowserAuthPath    string
 	SessionRefreshPath string
 }
@@ -36,6 +38,7 @@ type Client struct {
 	whoAmIPath         string
 	policyPath         string
 	agentPath          string
+	searchPath         string
 	authPath           string
 	sessionRefreshPath string
 }
@@ -94,6 +97,42 @@ type CreateAgentResponse struct {
 	Bound    bool   `json:"bound"`
 }
 
+type SearchRequest struct {
+	Query            string
+	Networks         []string
+	Limit            int
+	BudgetMax        *float64
+	BudgetAsset      string
+	MinServiceScore  *float64
+	MinProviderScore *float64
+	MinPaymentScore  *float64
+}
+
+type SearchResponse struct {
+	Items      []SearchResultItem `json:"items"`
+	Pagination struct {
+		Total  int `json:"total"`
+		Limit  int `json:"limit"`
+		Offset int `json:"offset"`
+	} `json:"pagination"`
+}
+
+type SearchResultItem struct {
+	ID          string   `json:"id"`
+	ResourceURL string   `json:"resourceUrl"`
+	Type        string   `json:"type"`
+	Networks    []string `json:"networks"`
+	Description string   `json:"description"`
+	MinPrice    float64  `json:"minPrice"`
+	Asset       string   `json:"asset"`
+	Origin      struct {
+		URL     string  `json:"url"`
+		Title   *string `json:"title"`
+		Favicon *string `json:"favicon"`
+	} `json:"origin"`
+	Score float64 `json:"score"`
+}
+
 func New(opts Options) *Client {
 	return &Client{
 		baseURL:            strings.TrimRight(opts.BaseURL, "/"),
@@ -104,6 +143,7 @@ func New(opts Options) *Client {
 		whoAmIPath:         fallback(opts.WhoAmIPath, "/api/cli/whoami"),
 		policyPath:         fallback(opts.PolicyInitPath, "/api/cli/policy/init"),
 		agentPath:          fallback(opts.AgentPath, "/api/cli/agent"),
+		searchPath:         fallback(opts.SearchPath, "/api/search"),
 		authPath:           fallback(opts.BrowserAuthPath, "/api/cli/auth/login"),
 		sessionRefreshPath: fallback(opts.SessionRefreshPath, "/api/auth/get-session"),
 	}
@@ -196,6 +236,67 @@ func (c *Client) CreateAgent(ctx context.Context, req CreateAgentRequest) (Creat
 	var out CreateAgentResponse
 	if err := json.NewDecoder(res.Body).Decode(&out); err != nil {
 		return CreateAgentResponse{}, err
+	}
+	return out, nil
+}
+
+func (c *Client) Search(ctx context.Context, req SearchRequest) (SearchResponse, error) {
+	if strings.TrimSpace(req.Query) == "" {
+		return SearchResponse{}, errors.New("query is required")
+	}
+
+	params := url.Values{}
+	params.Set("q", req.Query)
+
+	if req.Limit > 0 {
+		params.Set("limit", strconv.Itoa(req.Limit))
+	}
+	for _, network := range req.Networks {
+		network = strings.TrimSpace(network)
+		if network == "" {
+			continue
+		}
+		params.Add("network", network)
+	}
+	if req.BudgetMax != nil {
+		params.Set("budgetMax", strconv.FormatFloat(*req.BudgetMax, 'f', -1, 64))
+	}
+	if strings.TrimSpace(req.BudgetAsset) != "" {
+		params.Set("budgetAsset", strings.TrimSpace(req.BudgetAsset))
+	}
+	if req.MinServiceScore != nil {
+		params.Set("minServiceScore", strconv.FormatFloat(*req.MinServiceScore, 'f', -1, 64))
+	}
+	if req.MinProviderScore != nil {
+		params.Set("minProviderScore", strconv.FormatFloat(*req.MinProviderScore, 'f', -1, 64))
+	}
+	if req.MinPaymentScore != nil {
+		params.Set("minPaymentScore", strconv.FormatFloat(*req.MinPaymentScore, 'f', -1, 64))
+	}
+
+	searchPath := c.searchPath
+	if encoded := params.Encode(); encoded != "" {
+		searchPath += "?" + encoded
+	}
+
+	res, err := c.do(ctx, http.MethodGet, searchPath, nil, false)
+	if err != nil {
+		return SearchResponse{}, err
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode >= 300 {
+		body, _ := io.ReadAll(io.LimitReader(res.Body, 4096))
+		return SearchResponse{}, fmt.Errorf(
+			"search failed: status=%d body=%s",
+			res.StatusCode,
+			strings.TrimSpace(string(body)),
+		)
+	}
+
+	var out SearchResponse
+	if err := json.NewDecoder(res.Body).Decode(&out); err != nil {
+		return SearchResponse{}, err
 	}
 	return out, nil
 }

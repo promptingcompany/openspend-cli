@@ -28,13 +28,13 @@ func NewRootCmd() *cobra.Command {
 		Version: cliVersion,
 	}
 	root.SetVersionTemplate("{{printf \"%s\\n\" .Version}}")
+	root.CompletionOptions.DisableDefaultCmd = true
 
 	root.PersistentFlags().StringVar(&baseURLOverride, "base-url", "", "Marketplace base URL")
 
 	root.AddCommand(newAuthCmd())
-	root.AddCommand(newPolicyCmd())
-	root.AddCommand(newAgentCmd())
-	root.AddCommand(newOnboardingCmd())
+	root.AddCommand(newDashboardCmd())
+	root.AddCommand(newSearchCmd())
 	root.AddCommand(newWhoAmICmd())
 	root.AddCommand(newUpdateCmd())
 	root.AddCommand(newVersionCmd())
@@ -68,6 +68,7 @@ func clientFromConfig(cfg config.Config) *api.Client {
 		WhoAmIPath:         cfg.Marketplace.WhoAmIPath,
 		PolicyInitPath:     cfg.Marketplace.PolicyInitPath,
 		AgentPath:          cfg.Marketplace.AgentPath,
+		SearchPath:         cfg.Marketplace.SearchPath,
 		BrowserAuthPath:    cfg.Auth.BrowserLoginPath,
 		SessionRefreshPath: cfg.Auth.SessionRefreshPath,
 	})

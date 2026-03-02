@@ -1,6 +1,6 @@
 # openspend-cli
 
-Go-based CLI for OpenSpend marketplace onboarding and buyer setup.
+Go-based CLI for OpenSpend marketplace auth, dashboard management, and search.
 
 ## Install
 
@@ -64,9 +64,10 @@ Publish a GitHub release for the tag to trigger binary build/upload automation.
 ## Commands
 
 - `openspend auth login`
-- `openspend policy init --buyer`
-- `openspend agent create --external-key buyer-agent-1 --display-name "Buyer Agent"`
-- `openspend onboarding buyer-quickstart`
+- `openspend dashboard policy init --buyer`
+- `openspend dashboard agent create --external-key buyer-agent-1 --display-name "Buyer Agent"`
+- `openspend dashboard agent update --external-key buyer-agent-1 --display-name "Buyer Agent v2"`
+- `openspend search "stable diffusion image generation"`
 - `openspend whoami`
 - `openspend update`
 
@@ -82,7 +83,7 @@ What this does:
 
 - Verifies `/api/cli/*` routes are reachable at `http://127.0.0.1:5555`
 - Creates/signs in a local test user and obtains a session cookie from real auth HTTP endpoints
-- Runs `policy init`, `agent create`, and `whoami` through the compiled CLI binary
+- Runs `dashboard policy init`, `dashboard agent create`, and `whoami` through the compiled CLI binary
 - Uses an isolated temporary `HOME` so your real CLI config is not modified
 
 ## Real backend integration test
@@ -102,7 +103,7 @@ Configurable environment variables:
 - `OPENSPEND_TEST_EMAIL` and `OPENSPEND_TEST_PASSWORD` (used for sign-in)
 - `OPENSPEND_SESSION_TOKEN` and optional `OPENSPEND_SESSION_COOKIE` (skip sign-in and use an existing session)
 - `OPENSPEND_ALLOW_SIGNUP` (`1` to auto-create user before sign-in; default `0`)
-- `OPENSPEND_INTEGRATION_WRITE` (`1` to run write path: policy + agent; set `0` for read-only whoami)
+- `OPENSPEND_INTEGRATION_WRITE` (`1` to run write path: dashboard policy + dashboard agent; set `0` for read-only whoami)
 
 ## Notes
 
@@ -119,6 +120,7 @@ Configurable environment variables:
   - `OPENSPEND_MARKETPLACE_WHOAMI_PATH`
   - `OPENSPEND_MARKETPLACE_POLICY_INIT_PATH`
   - `OPENSPEND_MARKETPLACE_AGENT_PATH`
+  - `OPENSPEND_MARKETPLACE_SEARCH_PATH`
   - `OPENSPEND_AUTH_BROWSER_LOGIN_PATH`
   - `OPENSPEND_AUTH_SESSION_COOKIE`
   - `OPENSPEND_AUTH_SESSION_REFRESH_PATH`
@@ -131,6 +133,7 @@ base_url = "https://openspend.ai"
 whoami_path = "/api/cli/whoami"
 policy_init_path = "/api/cli/policy/init"
 agent_path = "/api/cli/agent"
+search_path = "/api/search"
 
 [auth]
 browser_login_path = "/api/cli/auth/login"

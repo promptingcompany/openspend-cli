@@ -20,7 +20,11 @@ cli-test-loop: cli-build
 	go test ./...
 	./$(CLI_BIN) --version
 	./$(CLI_BIN) auth login --help
-	./$(CLI_BIN) onboarding buyer-quickstart --help
+	./$(CLI_BIN) dashboard --help
+	./$(CLI_BIN) dashboard policy init --help
+	./$(CLI_BIN) dashboard agent create --help
+	./$(CLI_BIN) dashboard agent update --help
+	./$(CLI_BIN) search --help
 	./$(CLI_BIN) whoami --help
 
 cli-test-local-openspend: cli-build

@@ -21,6 +21,7 @@ type MarketplaceConfig struct {
 	WhoAmIPath     string `toml:"whoami_path"`
 	PolicyInitPath string `toml:"policy_init_path"`
 	AgentPath      string `toml:"agent_path"`
+	SearchPath     string `toml:"search_path"`
 }
 
 type AuthConfig struct {
@@ -43,6 +44,7 @@ func defaults() Config {
 			WhoAmIPath:     "/api/cli/whoami",
 			PolicyInitPath: "/api/cli/policy/init",
 			AgentPath:      "/api/cli/agent",
+			SearchPath:     "/api/search",
 		},
 		Auth: AuthConfig{
 			BrowserLoginPath:   "/api/cli/auth/login",
@@ -136,6 +138,9 @@ func ApplyEnvOverrides(cfg *Config) {
 	if v := os.Getenv("OPENSPEND_MARKETPLACE_AGENT_PATH"); v != "" {
 		cfg.Marketplace.AgentPath = v
 	}
+	if v := os.Getenv("OPENSPEND_MARKETPLACE_SEARCH_PATH"); v != "" {
+		cfg.Marketplace.SearchPath = v
+	}
 	if v := os.Getenv("OPENSPEND_AUTH_BROWSER_LOGIN_PATH"); v != "" {
 		cfg.Auth.BrowserLoginPath = v
 	}
@@ -164,6 +169,9 @@ func applyDefaults(cfg *Config) {
 	}
 	if cfg.Marketplace.AgentPath == "" {
 		cfg.Marketplace.AgentPath = def.Marketplace.AgentPath
+	}
+	if cfg.Marketplace.SearchPath == "" {
+		cfg.Marketplace.SearchPath = def.Marketplace.SearchPath
 	}
 	if cfg.Auth.BrowserLoginPath == "" {
 		cfg.Auth.BrowserLoginPath = def.Auth.BrowserLoginPath

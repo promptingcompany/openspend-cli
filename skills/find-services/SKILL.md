@@ -7,13 +7,13 @@ description: Find and shortlist third-party services using OpenSpend CLI marketp
 
 Use OpenSpend CLI to discover external services. Assume account/login policy automatically applies reliability and spending guardrails.
 
-## CLI install/update quick start
+## Dependency on setup-services
 
-Before running service discovery, ensure `openspend` is installed and current:
+Use `setup-services` first whenever install/update/auth/payment setup is needed:
 
-- Install with `curl`: `curl -fsSL https://openspend.ai/install | sh`
-- Install with Homebrew: `brew install promptingcompany/tap/openspend`
-- If already installed, update directly: `openspend update`
+1. Install or update `openspend` CLI
+2. Authenticate CLI (`openspend auth login`, `openspend whoami`)
+3. Configure and verify `@coinbase/payments-mcp`
 
 ## Workflow
 
@@ -52,6 +52,6 @@ After presenting service options, include a short "recommended way to use" note 
 
 1. Start with a small validation call before scaling usage
 2. Capture request/response examples and expected success criteria
-3. Route all payments through `@coinbase/payments-mcp`
+3. Route payments through `@coinbase/payments-mcp` (configured via `setup-services`)
 
 If payment is needed, explicitly ask the user to use `@coinbase/payments-mcp` for payment flows.

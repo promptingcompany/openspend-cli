@@ -1,15 +1,44 @@
 ---
-name: setup-payments
-description: Set up Coinbase Payments MCP for wallet authentication and paid API flows. Use when asked to install, configure, verify, or troubleshoot payments-mcp, especially when payment-enabled tool usage is required.
+name: setup-services
+description: Set up core service tooling for OpenSpend workflows. Use when asked to install or update openspend-cli, authenticate OpenSpend CLI, and configure Coinbase payments-mcp with npx for payment-enabled service usage.
 ---
 
-# Setup Payments
+# Setup Services
 
-Set up `@coinbase/payments-mcp` as an MCP server and verify auth/payment readiness before making paid requests.
+Install and configure both OpenSpend CLI and Coinbase Payments MCP, then verify authentication before service discovery or paid calls.
 
-## Quick setup
+## OpenSpend CLI setup
 
-1. Confirm prerequisites.
+1. Install OpenSpend CLI.
+
+Method 1 (`curl` installer):
+
+```bash
+curl -fsSL https://openspend.ai/install | sh
+```
+
+Method 2 (`homebrew`):
+
+```bash
+brew install promptingcompany/tap/openspend
+```
+
+2. Update existing install when `openspend` is already available.
+
+```bash
+openspend update
+```
+
+3. Authenticate and verify CLI session.
+
+```bash
+openspend auth login -y
+openspend whoami
+```
+
+## Payments MCP setup
+
+1. Confirm Node.js and `npx` are available.
 
 ```bash
 node -v
@@ -29,9 +58,9 @@ npx -v
 }
 ```
 
-3. Restart the MCP client/session so the new server is loaded.
+3. Restart MCP client/session so the server is loaded.
 
-## Verify and authenticate
+## Payments authentication and verification
 
 1. Call `check_session_status` first.
 2. If not signed in, call `show_wallet_app` immediately and complete sign-in.
@@ -46,6 +75,7 @@ npx -v
 
 ## Troubleshooting
 
+- If `openspend` is missing after install, ensure your PATH includes the install directory and rerun `openspend version`.
 - If `npx @coinbase/payments-mcp` fails, verify Node.js installation and rerun with `npx -y @coinbase/payments-mcp`.
 - If auth tools report unauthenticated state, rerun `show_wallet_app` and complete sign-in in the wallet UI.
 - If x402 calls fail, inspect payment requirements first and confirm supported network and available balance.

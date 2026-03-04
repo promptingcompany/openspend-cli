@@ -22,8 +22,10 @@ cli-test-loop: cli-build
 	./$(CLI_BIN) auth login --help
 	./$(CLI_BIN) dashboard --help
 	./$(CLI_BIN) dashboard policy init --help
+	./$(CLI_BIN) dashboard policy list --help
 	./$(CLI_BIN) dashboard agent create --help
 	./$(CLI_BIN) dashboard agent update --help
+	./$(CLI_BIN) dashboard agent list --help
 	./$(CLI_BIN) search --help
 	./$(CLI_BIN) whoami --help
 

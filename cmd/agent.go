@@ -16,6 +16,7 @@ func newAgentCmd() *cobra.Command {
 	}
 	agentCmd.AddCommand(newAgentCreateCmd())
 	agentCmd.AddCommand(newAgentUpdateCmd())
+	agentCmd.AddCommand(newAgentListCmd())
 	return agentCmd
 }
 
@@ -108,4 +109,65 @@ func runAgentUpsert(
 		res.PolicyID,
 	)
 	return nil
+}
+
+func newAgentListCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "list",
+		Short: "List agent subjects for current user",
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			cfg := mustLoadConfig()
+			client := clientFromConfig(cfg)
+
+			res, err := client.WhoAmI(cmd.Context())
+			if err != nil {
+				return err
+			}
+			if err := persistAuthFromClient(&cfg, client); err != nil {
+				return err
+			}
+
+			found := 0
+			for _, subject := range res.Subjects {
+				if subject.Kind != "agent" && subject.Kind != "anonymous_agent" {
+					continue
+				}
+				displayName := ""
+				if subject.DisplayName != nil {
+					displayName = strings.TrimSpace(*subject.DisplayName)
+				}
+				externalKey := ""
+				if subject.ExternalKey != nil {
+					externalKey = strings.TrimSpace(*subject.ExternalKey)
+				}
+				policyName := ""
+				if subject.PolicyName != nil {
+					policyName = strings.TrimSpace(*subject.PolicyName)
+				}
+				policyID := ""
+				if subject.PolicyID != nil {
+					policyID = strings.TrimSpace(*subject.PolicyID)
+				}
+				fmt.Fprintf(
+					cmd.OutOrStdout(),
+					"- id=%s key=%s name=%s kind=%s status=%s policy=%s policy_id=%s\n",
+					subject.ID,
+					externalKey,
+					displayName,
+					subject.Kind,
+					subject.Status,
+					policyName,
+					policyID,
+				)
+				found++
+			}
+
+			if found == 0 {
+				fmt.Fprintln(cmd.OutOrStdout(), "No agents found.")
+				return nil
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "Total agents: %d\n", found)
+			return nil
+		},
+	}
 }

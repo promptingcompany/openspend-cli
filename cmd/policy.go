@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/promptingcompany/openspend-cli/internal/api"
@@ -14,6 +15,7 @@ func newPolicyCmd() *cobra.Command {
 		Short: "Policy management",
 	}
 	policyCmd.AddCommand(newPolicyInitCmd())
+	policyCmd.AddCommand(newPolicyListCmd())
 	return policyCmd
 }
 
@@ -77,4 +79,91 @@ func newPolicyInitCmd() *cobra.Command {
 	cmd.Flags().StringVar(&denyHosts, "deny-hosts", "", "Comma-separated deny hosts")
 	cmd.Flags().Int64Var(&maxPrice, "max-price", 0, "Optional max price (base units)")
 	return cmd
+}
+
+func newPolicyListCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "list",
+		Short: "List policies visible to current user",
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			cfg := mustLoadConfig()
+			client := clientFromConfig(cfg)
+
+			res, err := client.WhoAmI(cmd.Context())
+			if err != nil {
+				return err
+			}
+			if err := persistAuthFromClient(&cfg, client); err != nil {
+				return err
+			}
+
+			type policySummary struct {
+				ID         string
+				Name       string
+				Mode       string
+				SubjectCnt int
+			}
+
+			policies := make(map[string]policySummary)
+			for _, subject := range res.Subjects {
+				id := ""
+				if subject.PolicyID != nil {
+					id = strings.TrimSpace(*subject.PolicyID)
+				}
+				name := ""
+				if subject.PolicyName != nil {
+					name = strings.TrimSpace(*subject.PolicyName)
+				}
+				mode := ""
+				if subject.PolicyMode != nil {
+					mode = strings.TrimSpace(*subject.PolicyMode)
+				}
+				if id == "" && name == "" {
+					continue
+				}
+
+				key := id
+				if key == "" {
+					key = "name:" + name
+				}
+				current := policies[key]
+				if current.ID == "" {
+					current.ID = id
+				}
+				if current.Name == "" {
+					current.Name = name
+				}
+				if current.Mode == "" {
+					current.Mode = mode
+				}
+				current.SubjectCnt++
+				policies[key] = current
+			}
+
+			if len(policies) == 0 {
+				fmt.Fprintln(cmd.OutOrStdout(), "No policies found.")
+				return nil
+			}
+
+			keys := make([]string, 0, len(policies))
+			for key := range policies {
+				keys = append(keys, key)
+			}
+			sort.Strings(keys)
+
+			for _, key := range keys {
+				p := policies[key]
+				fmt.Fprintf(
+					cmd.OutOrStdout(),
+					"- id=%s name=%s mode=%s subjects=%d\n",
+					p.ID,
+					p.Name,
+					p.Mode,
+					p.SubjectCnt,
+				)
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "Total policies: %d\n", len(keys))
+			return nil
+		},
+	}
 }

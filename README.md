@@ -120,9 +120,10 @@ Configurable environment variables:
 - Use `-y` to open without prompt, or `-n` to skip opening and copy URL manually.
 - For automated/sandbox browser flows, set `--callback-host` (for example `192.0.0.2`) so callback is reachable.
 - After login, CLI prompts for identity mode: `admin (self)` or one of your active agents.
-- In `agent` mode, CLI includes `x-openspend-agent` with the selected `externalKey` on authenticated requests.
+- Selected identity is encoded into a server-signed CLI token used for authenticated requests.
 - In `agent` mode, dashboard commands are hidden; log in as `self` to manage policies/agents.
 - Identity mode and selected agent are persisted from `auth login` and are not overridable via CLI env vars.
+- Changing identity requires running `openspend auth login` again.
 - CLI stores settings and session token in `~/.config/openspend/config.toml` (TOML codec).
 - CLI now also stores session expiry metadata and refreshes session state automatically during authenticated calls.
 - Default marketplace URL: `https://openspend.ai`.
@@ -134,6 +135,7 @@ Configurable environment variables:
   - `OPENSPEND_MARKETPLACE_AGENT_PATH`
   - `OPENSPEND_MARKETPLACE_SEARCH_PATH`
   - `OPENSPEND_AUTH_BROWSER_LOGIN_PATH`
+  - `OPENSPEND_AUTH_CLI_AUTH_EXCHANGE_PATH`
   - `OPENSPEND_AUTH_SESSION_COOKIE`
   - `OPENSPEND_AUTH_SESSION_REFRESH_PATH`
 
@@ -149,6 +151,8 @@ search_path = "/api/search"
 
 [auth]
 browser_login_path = "/api/cli/auth/login"
+cli_auth_exchange_path = "/api/cli/auth/exchange"
+auth_token_type = "bearer"
 session_cookie = "better-auth.session_token"
 session_refresh_path = "/api/auth/get-session"
 login_as = "self"

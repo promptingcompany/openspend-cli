@@ -65,18 +65,20 @@ func mustLoadConfig() config.Config {
 
 func clientFromConfig(cfg config.Config) *api.Client {
 	return api.New(api.Options{
-		BaseURL:            cfg.Marketplace.BaseURL,
-		SessionToken:       cfg.Auth.SessionToken,
-		SessionCookie:      cfg.Auth.SessionCookie,
-		SessionExpiresAt:   cfg.Auth.SessionExpiresAt,
-		LoginAs:            cfg.Auth.LoginAs,
-		ActiveSubjectKey:   cfg.Auth.ActiveSubjectKey,
-		WhoAmIPath:         cfg.Marketplace.WhoAmIPath,
-		PolicyInitPath:     cfg.Marketplace.PolicyInitPath,
-		AgentPath:          cfg.Marketplace.AgentPath,
-		SearchPath:         cfg.Marketplace.SearchPath,
-		BrowserAuthPath:    cfg.Auth.BrowserLoginPath,
-		SessionRefreshPath: cfg.Auth.SessionRefreshPath,
+		BaseURL:             cfg.Marketplace.BaseURL,
+		SessionToken:        cfg.Auth.SessionToken,
+		AuthTokenType:       cfg.Auth.AuthTokenType,
+		SessionCookie:       cfg.Auth.SessionCookie,
+		SessionExpiresAt:    cfg.Auth.SessionExpiresAt,
+		LoginAs:             cfg.Auth.LoginAs,
+		ActiveSubjectKey:    cfg.Auth.ActiveSubjectKey,
+		WhoAmIPath:          cfg.Marketplace.WhoAmIPath,
+		PolicyInitPath:      cfg.Marketplace.PolicyInitPath,
+		AgentPath:           cfg.Marketplace.AgentPath,
+		SearchPath:          cfg.Marketplace.SearchPath,
+		BrowserAuthPath:     cfg.Auth.BrowserLoginPath,
+		CliAuthExchangePath: cfg.Auth.CliAuthExchangePath,
+		SessionRefreshPath:  cfg.Auth.SessionRefreshPath,
 	})
 }
 
@@ -96,6 +98,10 @@ func persistAuthFromClient(cfg *config.Config, client *api.Client) error {
 	}
 	if !cfg.Auth.SessionExpiresAt.Equal(client.SessionExpiresAt()) {
 		cfg.Auth.SessionExpiresAt = client.SessionExpiresAt()
+		updated = true
+	}
+	if cfg.Auth.AuthTokenType != client.AuthTokenType() {
+		cfg.Auth.AuthTokenType = client.AuthTokenType()
 		updated = true
 	}
 	if cfg.Auth.LoginAs != client.LoginAs() {

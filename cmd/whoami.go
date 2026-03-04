@@ -10,7 +10,7 @@ import (
 func newWhoAmICmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "whoami",
-		Short: "Show current authenticated user and buyer subjects",
+		Short: "Show current authenticated user and CLI identity",
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			cfg := mustLoadConfig()
 			client := clientFromConfig(cfg)
@@ -40,34 +40,6 @@ func newWhoAmICmd() *cobra.Command {
 				)
 			default:
 				fmt.Fprintln(cmd.OutOrStdout(), "CLI identity: admin (self)")
-			}
-			fmt.Fprintln(cmd.OutOrStdout(), "Subjects:")
-			if len(res.Subjects) == 0 {
-				fmt.Fprintln(cmd.OutOrStdout(), "  - none")
-				return nil
-			}
-
-			for _, subject := range res.Subjects {
-				display := ""
-				if subject.DisplayName != nil {
-					display = *subject.DisplayName
-				}
-				externalKey := ""
-				if subject.ExternalKey != nil {
-					externalKey = *subject.ExternalKey
-				}
-				policy := ""
-				if subject.PolicyName != nil {
-					policy = *subject.PolicyName
-				}
-				fmt.Fprintf(
-					cmd.OutOrStdout(),
-					"  - %s [%s] key=%s policy=%s\n",
-					display,
-					subject.Kind,
-					externalKey,
-					policy,
-				)
 			}
 			return nil
 		},

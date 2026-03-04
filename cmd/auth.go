@@ -11,9 +11,11 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 
+	"github.com/promptingcompany/openspend-cli/internal/api"
 	"github.com/promptingcompany/openspend-cli/internal/config"
 	"github.com/spf13/cobra"
 )
@@ -24,6 +26,7 @@ func newAuthCmd() *cobra.Command {
 		Short: "Authentication commands",
 	}
 	authCmd.AddCommand(newAuthLoginCmd())
+	authCmd.AddCommand(newAuthLogoutCmd())
 	return authCmd
 }
 
@@ -43,7 +46,7 @@ func newAuthLoginCmd() *cobra.Command {
 			}
 
 			cfg := mustLoadConfig()
-			token, err := runBrowserLogin(
+			loginCallback, err := runBrowserLogin(
 				cmd,
 				cfg,
 				timeoutSeconds,
@@ -54,8 +57,14 @@ func newAuthLoginCmd() *cobra.Command {
 				return err
 			}
 
-			client := clientFromConfig(cfg)
-			client.SetSessionToken(token)
+			loginCfg := cfg
+			loginCfg.Auth.SessionToken = loginCallback.token
+			loginCfg.Auth.AuthTokenType = config.AuthTokenCookie
+			if strings.TrimSpace(loginCallback.cookieName) != "" {
+				loginCfg.Auth.SessionCookie = strings.TrimSpace(loginCallback.cookieName)
+			}
+
+			client := clientFromConfig(loginCfg)
 			// Best effort: fetch session metadata/expiry from Better Auth endpoint.
 			if err := client.SyncSession(cmd.Context()); err != nil {
 				fmt.Fprintf(
@@ -64,11 +73,53 @@ func newAuthLoginCmd() *cobra.Command {
 					err,
 				)
 			}
-			cfg.Auth.SessionToken = token
+
+			who, err := client.WhoAmI(cmd.Context())
+			if err != nil {
+				return fmt.Errorf("authenticated but failed to load subjects for identity selection: %w", err)
+			}
+			choice, err := resolveLoginIdentityChoice(cmd, who)
+			if err != nil {
+				return err
+			}
+			exchangeReq := api.ExchangeCliAuthRequest{
+				LoginAs: choice.loginAs,
+			}
+			if strings.TrimSpace(choice.subjectKey) != "" {
+				exchangeReq.SubjectExternalKey = strings.TrimSpace(choice.subjectKey)
+			}
+			exchangeRes, err := client.ExchangeCliAuth(cmd.Context(), exchangeReq)
+			if err != nil {
+				return err
+			}
+
+			subjectKey := ""
+			if exchangeRes.SubjectExternalKey != nil {
+				subjectKey = strings.TrimSpace(*exchangeRes.SubjectExternalKey)
+			}
+			subjectName := ""
+			if exchangeRes.SubjectDisplayName != nil {
+				subjectName = strings.TrimSpace(*exchangeRes.SubjectDisplayName)
+			}
+
+			client.SetAuthToken(exchangeRes.CliToken, config.AuthTokenBearer)
+
+			applyExchangedAuthConfig(&cfg, exchangeRes)
 			if err := persistAuthFromClient(&cfg, client); err != nil {
 				return err
 			}
 			fmt.Fprintf(cmd.OutOrStdout(), "Logged in successfully against %s\n", cfg.Marketplace.BaseURL)
+			switch exchangeRes.LoginAs {
+			case config.AuthLoginAsAgent:
+				fmt.Fprintf(
+					cmd.OutOrStdout(),
+					"CLI identity: agent (%s key=%s)\n",
+					subjectName,
+					subjectKey,
+				)
+			default:
+				fmt.Fprintln(cmd.OutOrStdout(), "CLI identity: admin (self)")
+			}
 			return nil
 		},
 	}
@@ -85,18 +136,171 @@ func newAuthLoginCmd() *cobra.Command {
 	return cmd
 }
 
+func newAuthLogoutCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "logout",
+		Short: "Clear local CLI authentication session",
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			cfg := mustLoadConfig()
+			if !clearAuthSession(&cfg) {
+				fmt.Fprintln(cmd.OutOrStdout(), "Already logged out.")
+				return nil
+			}
+			if err := config.Save(cfg); err != nil {
+				return err
+			}
+			fmt.Fprintln(cmd.OutOrStdout(), "Logged out.")
+			return nil
+		},
+	}
+}
+
+func clearAuthSession(cfg *config.Config) bool {
+	if cfg == nil {
+		return false
+	}
+
+	changed := false
+	if strings.TrimSpace(cfg.Auth.SessionToken) != "" {
+		cfg.Auth.SessionToken = ""
+		changed = true
+	}
+	if !cfg.Auth.SessionExpiresAt.IsZero() {
+		cfg.Auth.SessionExpiresAt = time.Time{}
+		changed = true
+	}
+	if cfg.Auth.AuthTokenType != config.AuthTokenCookie {
+		cfg.Auth.AuthTokenType = config.AuthTokenCookie
+		changed = true
+	}
+	return changed
+}
+
+type loginIdentityChoice struct {
+	loginAs    string
+	subjectKey string
+}
+
+type selectableAgent struct {
+	externalKey string
+	displayName string
+}
+
+func resolveLoginIdentityChoice(
+	cmd *cobra.Command,
+	who api.WhoAmIResponse,
+) (loginIdentityChoice, error) {
+	agents := extractSelectableAgents(who)
+	if len(agents) == 0 {
+		return loginIdentityChoice{loginAs: config.AuthLoginAsSelf}, nil
+	}
+	return promptIdentityChoice(cmd, agents)
+}
+
+func applyExchangedAuthConfig(cfg *config.Config, exchangeRes api.ExchangeCliAuthResponse) {
+	if cfg == nil {
+		return
+	}
+	cfg.Auth.SessionToken = exchangeRes.CliToken
+	cfg.Auth.AuthTokenType = config.AuthTokenBearer
+	// Always reset first so a token is never paired with stale expiry metadata.
+	cfg.Auth.SessionExpiresAt = time.Time{}
+	if exchangeRes.ExpiresAt != nil {
+		cfg.Auth.SessionExpiresAt = exchangeRes.ExpiresAt.UTC()
+	}
+}
+
+func extractSelectableAgents(who api.WhoAmIResponse) []selectableAgent {
+	agents := make([]selectableAgent, 0)
+	for _, subject := range who.Subjects {
+		if subject.Status != "active" {
+			continue
+		}
+		if subject.Kind != "agent" && subject.Kind != "anonymous_agent" {
+			continue
+		}
+		if subject.ExternalKey == nil || strings.TrimSpace(*subject.ExternalKey) == "" {
+			continue
+		}
+		name := strings.TrimSpace(*subject.ExternalKey)
+		if subject.DisplayName != nil && strings.TrimSpace(*subject.DisplayName) != "" {
+			name = strings.TrimSpace(*subject.DisplayName)
+		}
+		agents = append(agents, selectableAgent{
+			externalKey: strings.TrimSpace(*subject.ExternalKey),
+			displayName: name,
+		})
+	}
+	return agents
+}
+
+func promptIdentityChoice(
+	cmd *cobra.Command,
+	agents []selectableAgent,
+) (loginIdentityChoice, error) {
+	fmt.Fprintln(cmd.OutOrStdout(), "Choose CLI identity:")
+	fmt.Fprintln(cmd.OutOrStdout(), "  1) Admin (self)")
+	for i, agent := range agents {
+		fmt.Fprintf(
+			cmd.OutOrStdout(),
+			"  %d) Agent: %s (key=%s)\n",
+			i+2,
+			agent.displayName,
+			agent.externalKey,
+		)
+	}
+
+	reader := bufio.NewReader(os.Stdin)
+	maxChoice := len(agents) + 1
+	for {
+		fmt.Fprintf(cmd.OutOrStdout(), "Select identity [1-%d] (default 1): ", maxChoice)
+		raw, err := reader.ReadString('\n')
+		if err != nil && !errors.Is(err, io.EOF) {
+			return loginIdentityChoice{}, err
+		}
+		raw = strings.TrimSpace(raw)
+		if raw == "" {
+			return loginIdentityChoice{loginAs: config.AuthLoginAsSelf}, nil
+		}
+
+		selection, parseErr := strconv.Atoi(raw)
+		if parseErr != nil || selection < 1 || selection > maxChoice {
+			fmt.Fprintf(cmd.OutOrStdout(), "Please enter a number from 1 to %d.\n", maxChoice)
+			if errors.Is(err, io.EOF) {
+				return loginIdentityChoice{loginAs: config.AuthLoginAsSelf}, nil
+			}
+			continue
+		}
+
+		if selection == 1 {
+			return loginIdentityChoice{loginAs: config.AuthLoginAsSelf}, nil
+		}
+
+		agent := agents[selection-2]
+		return loginIdentityChoice{
+			loginAs:    config.AuthLoginAsAgent,
+			subjectKey: agent.externalKey,
+		}, nil
+	}
+}
+
+type browserLoginCallback struct {
+	token      string
+	cookieName string
+}
+
 func runBrowserLogin(
 	cmd *cobra.Command,
 	cfg config.Config,
 	timeoutSeconds int,
 	openChoice bool,
 	callbackHost string,
-) (string, error) {
+) (browserLoginCallback, error) {
 	client := clientFromConfig(cfg)
 
 	ln, err := net.Listen("tcp", "0.0.0.0:0")
 	if err != nil {
-		return "", fmt.Errorf("failed to bind callback server: %w", err)
+		return browserLoginCallback{}, fmt.Errorf("failed to bind callback server: %w", err)
 	}
 	defer ln.Close()
 
@@ -104,14 +308,10 @@ func runBrowserLogin(
 	callbackURL := fmt.Sprintf("http://%s:%d/callback", callbackHost, port)
 	loginURL, err := client.BrowserLoginURL(callbackURL)
 	if err != nil {
-		return "", err
+		return browserLoginCallback{}, err
 	}
 
-	type loginCallbackResult struct {
-		token      string
-		cookieName string
-	}
-	tokenCh := make(chan loginCallbackResult, 1)
+	tokenCh := make(chan browserLoginCallback, 1)
 	errCh := make(chan error, 1)
 
 	mux := http.NewServeMux()
@@ -126,7 +326,7 @@ func runBrowserLogin(
 		html := `<!doctype html><html><body><h3>OpenSpend CLI authenticated.</h3><p>You can return to terminal.</p></body></html>`
 		w.Header().Set("Content-Type", "text/html")
 		_, _ = w.Write([]byte(html))
-		tokenCh <- loginCallbackResult{
+		tokenCh <- browserLoginCallback{
 			token:      token,
 			cookieName: r.URL.Query().Get("session_cookie"),
 		}
@@ -153,14 +353,11 @@ func runBrowserLogin(
 	timeout := time.Duration(timeoutSeconds) * time.Second
 	select {
 	case loginRes := <-tokenCh:
-		if loginRes.cookieName != "" {
-			cfg.Auth.SessionCookie = loginRes.cookieName
-		}
-		return loginRes.token, nil
+		return loginRes, nil
 	case err := <-errCh:
-		return "", err
+		return browserLoginCallback{}, err
 	case <-time.After(timeout):
-		return "", fmt.Errorf("timed out waiting for browser callback after %s", timeout)
+		return browserLoginCallback{}, fmt.Errorf("timed out waiting for browser callback after %s", timeout)
 	}
 }
 

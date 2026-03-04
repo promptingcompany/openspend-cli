@@ -16,6 +16,13 @@ var deprecatedDefaultBaseURLs = map[string]struct{}{
 	"http://localhost:5555": {},
 }
 
+const (
+	AuthLoginAsSelf  = "self"
+	AuthLoginAsAgent = "agent"
+	AuthTokenCookie  = "cookie"
+	AuthTokenBearer  = "bearer"
+)
+
 type MarketplaceConfig struct {
 	BaseURL        string `toml:"base_url"`
 	WhoAmIPath     string `toml:"whoami_path"`
@@ -25,11 +32,13 @@ type MarketplaceConfig struct {
 }
 
 type AuthConfig struct {
-	BrowserLoginPath   string    `toml:"browser_login_path"`
-	SessionToken       string    `toml:"session_token,omitempty"`
-	SessionCookie      string    `toml:"session_cookie"`
-	SessionExpiresAt   time.Time `toml:"session_expires_at,omitempty"`
-	SessionRefreshPath string    `toml:"session_refresh_path"`
+	BrowserLoginPath    string    `toml:"browser_login_path"`
+	CliAuthExchangePath string    `toml:"cli_auth_exchange_path"`
+	SessionToken        string    `toml:"session_token,omitempty"`
+	AuthTokenType       string    `toml:"auth_token_type"`
+	SessionCookie       string    `toml:"session_cookie"`
+	SessionExpiresAt    time.Time `toml:"session_expires_at,omitempty"`
+	SessionRefreshPath  string    `toml:"session_refresh_path"`
 }
 
 type Config struct {
@@ -47,9 +56,11 @@ func defaults() Config {
 			SearchPath:     "/api/search",
 		},
 		Auth: AuthConfig{
-			BrowserLoginPath:   "/api/cli/auth/login",
-			SessionCookie:      "better-auth.session_token",
-			SessionRefreshPath: "/api/auth/get-session",
+			BrowserLoginPath:    "/api/cli/auth/login",
+			CliAuthExchangePath: "/api/cli/auth/exchange",
+			AuthTokenType:       AuthTokenCookie,
+			SessionCookie:       "better-auth.session_token",
+			SessionRefreshPath:  "/api/auth/get-session",
 		},
 	}
 }
@@ -144,6 +155,9 @@ func ApplyEnvOverrides(cfg *Config) {
 	if v := os.Getenv("OPENSPEND_AUTH_BROWSER_LOGIN_PATH"); v != "" {
 		cfg.Auth.BrowserLoginPath = v
 	}
+	if v := os.Getenv("OPENSPEND_AUTH_CLI_AUTH_EXCHANGE_PATH"); v != "" {
+		cfg.Auth.CliAuthExchangePath = v
+	}
 	if v := os.Getenv("OPENSPEND_AUTH_SESSION_COOKIE"); v != "" {
 		cfg.Auth.SessionCookie = v
 	}
@@ -176,11 +190,24 @@ func applyDefaults(cfg *Config) {
 	if cfg.Auth.BrowserLoginPath == "" {
 		cfg.Auth.BrowserLoginPath = def.Auth.BrowserLoginPath
 	}
+	if cfg.Auth.CliAuthExchangePath == "" {
+		cfg.Auth.CliAuthExchangePath = def.Auth.CliAuthExchangePath
+	}
+	cfg.Auth.AuthTokenType = normalizeAuthTokenType(cfg.Auth.AuthTokenType)
 	if cfg.Auth.SessionCookie == "" {
 		cfg.Auth.SessionCookie = def.Auth.SessionCookie
 	}
 	if cfg.Auth.SessionRefreshPath == "" {
 		cfg.Auth.SessionRefreshPath = def.Auth.SessionRefreshPath
+	}
+}
+
+func normalizeAuthTokenType(value string) string {
+	switch value {
+	case AuthTokenBearer:
+		return AuthTokenBearer
+	default:
+		return AuthTokenCookie
 	}
 }
 

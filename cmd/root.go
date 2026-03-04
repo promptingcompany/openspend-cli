@@ -22,6 +22,8 @@ func SetVersion(version string) {
 }
 
 func NewRootCmd() *cobra.Command {
+	role := detectConfiguredRole()
+
 	root := &cobra.Command{
 		Use:     "openspend",
 		Short:   "OpenSpend CLI",
@@ -33,11 +35,13 @@ func NewRootCmd() *cobra.Command {
 	root.PersistentFlags().StringVar(&baseURLOverride, "base-url", "", "Marketplace base URL")
 
 	root.AddCommand(newAuthCmd())
-	root.AddCommand(newDashboardCmd())
 	root.AddCommand(newSearchCmd())
 	root.AddCommand(newWhoAmICmd())
 	root.AddCommand(newUpdateCmd())
 	root.AddCommand(newVersionCmd())
+	if role != config.AuthLoginAsAgent {
+		root.AddCommand(newDashboardCmd())
+	}
 
 	return root
 }
@@ -61,16 +65,18 @@ func mustLoadConfig() config.Config {
 
 func clientFromConfig(cfg config.Config) *api.Client {
 	return api.New(api.Options{
-		BaseURL:            cfg.Marketplace.BaseURL,
-		SessionToken:       cfg.Auth.SessionToken,
-		SessionCookie:      cfg.Auth.SessionCookie,
-		SessionExpiresAt:   cfg.Auth.SessionExpiresAt,
-		WhoAmIPath:         cfg.Marketplace.WhoAmIPath,
-		PolicyInitPath:     cfg.Marketplace.PolicyInitPath,
-		AgentPath:          cfg.Marketplace.AgentPath,
-		SearchPath:         cfg.Marketplace.SearchPath,
-		BrowserAuthPath:    cfg.Auth.BrowserLoginPath,
-		SessionRefreshPath: cfg.Auth.SessionRefreshPath,
+		BaseURL:             cfg.Marketplace.BaseURL,
+		SessionToken:        cfg.Auth.SessionToken,
+		AuthTokenType:       cfg.Auth.AuthTokenType,
+		SessionCookie:       cfg.Auth.SessionCookie,
+		SessionExpiresAt:    cfg.Auth.SessionExpiresAt,
+		WhoAmIPath:          cfg.Marketplace.WhoAmIPath,
+		PolicyInitPath:      cfg.Marketplace.PolicyInitPath,
+		AgentPath:           cfg.Marketplace.AgentPath,
+		SearchPath:          cfg.Marketplace.SearchPath,
+		BrowserAuthPath:     cfg.Auth.BrowserLoginPath,
+		CliAuthExchangePath: cfg.Auth.CliAuthExchangePath,
+		SessionRefreshPath:  cfg.Auth.SessionRefreshPath,
 	})
 }
 
@@ -92,8 +98,25 @@ func persistAuthFromClient(cfg *config.Config, client *api.Client) error {
 		cfg.Auth.SessionExpiresAt = client.SessionExpiresAt()
 		updated = true
 	}
+	if cfg.Auth.AuthTokenType != client.AuthTokenType() {
+		cfg.Auth.AuthTokenType = client.AuthTokenType()
+		updated = true
+	}
 	if !updated {
 		return nil
 	}
 	return config.Save(*cfg)
+}
+
+func detectConfiguredRole() string {
+	cfg, err := config.Load()
+	if err != nil {
+		return config.AuthLoginAsSelf
+	}
+	config.ApplyEnvOverrides(&cfg)
+	identity := inferAuthIdentity(cfg.Auth.AuthTokenType, cfg.Auth.SessionToken)
+	if identity.LoginAs == config.AuthLoginAsAgent {
+		return config.AuthLoginAsAgent
+	}
+	return config.AuthLoginAsSelf
 }

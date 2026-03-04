@@ -17,30 +17,34 @@ import (
 var errSessionExpired = errors.New("session expired; run openspend auth login")
 
 type Options struct {
-	BaseURL            string
-	SessionToken       string
-	SessionCookie      string
-	SessionExpiresAt   time.Time
-	WhoAmIPath         string
-	PolicyInitPath     string
-	AgentPath          string
-	SearchPath         string
-	BrowserAuthPath    string
-	SessionRefreshPath string
+	BaseURL             string
+	SessionToken        string
+	AuthTokenType       string
+	SessionCookie       string
+	SessionExpiresAt    time.Time
+	WhoAmIPath          string
+	PolicyInitPath      string
+	AgentPath           string
+	SearchPath          string
+	BrowserAuthPath     string
+	CliAuthExchangePath string
+	SessionRefreshPath  string
 }
 
 type Client struct {
-	baseURL            string
-	httpClient         *http.Client
-	sessionToken       string
-	sessionCookie      string
-	sessionExpiresAt   time.Time
-	whoAmIPath         string
-	policyPath         string
-	agentPath          string
-	searchPath         string
-	authPath           string
-	sessionRefreshPath string
+	baseURL             string
+	httpClient          *http.Client
+	sessionToken        string
+	authTokenType       string
+	sessionCookie       string
+	sessionExpiresAt    time.Time
+	whoAmIPath          string
+	policyPath          string
+	agentPath           string
+	searchPath          string
+	authPath            string
+	cliAuthExchangePath string
+	sessionRefreshPath  string
 }
 
 type WhoAmIResponse struct {
@@ -133,19 +137,34 @@ type SearchResultItem struct {
 	Score float64 `json:"score"`
 }
 
+type ExchangeCliAuthRequest struct {
+	LoginAs            string `json:"loginAs"`
+	SubjectExternalKey string `json:"subjectExternalKey,omitempty"`
+}
+
+type ExchangeCliAuthResponse struct {
+	CliToken           string     `json:"cliToken"`
+	ExpiresAt          *time.Time `json:"expiresAt"`
+	LoginAs            string     `json:"loginAs"`
+	SubjectExternalKey *string    `json:"subjectExternalKey"`
+	SubjectDisplayName *string    `json:"subjectDisplayName"`
+}
+
 func New(opts Options) *Client {
 	return &Client{
-		baseURL:            strings.TrimRight(opts.BaseURL, "/"),
-		httpClient:         &http.Client{Timeout: 20 * time.Second},
-		sessionToken:       opts.SessionToken,
-		sessionCookie:      fallback(opts.SessionCookie, "better-auth.session_token"),
-		sessionExpiresAt:   opts.SessionExpiresAt,
-		whoAmIPath:         fallback(opts.WhoAmIPath, "/api/cli/whoami"),
-		policyPath:         fallback(opts.PolicyInitPath, "/api/cli/policy/init"),
-		agentPath:          fallback(opts.AgentPath, "/api/cli/agent"),
-		searchPath:         fallback(opts.SearchPath, "/api/search"),
-		authPath:           fallback(opts.BrowserAuthPath, "/api/cli/auth/login"),
-		sessionRefreshPath: fallback(opts.SessionRefreshPath, "/api/auth/get-session"),
+		baseURL:             strings.TrimRight(opts.BaseURL, "/"),
+		httpClient:          &http.Client{Timeout: 20 * time.Second},
+		sessionToken:        opts.SessionToken,
+		authTokenType:       fallback(opts.AuthTokenType, "cookie"),
+		sessionCookie:       fallback(opts.SessionCookie, "better-auth.session_token"),
+		sessionExpiresAt:    opts.SessionExpiresAt,
+		whoAmIPath:          fallback(opts.WhoAmIPath, "/api/cli/whoami"),
+		policyPath:          fallback(opts.PolicyInitPath, "/api/cli/policy/init"),
+		agentPath:           fallback(opts.AgentPath, "/api/cli/agent"),
+		searchPath:          fallback(opts.SearchPath, "/api/search"),
+		authPath:            fallback(opts.BrowserAuthPath, "/api/cli/auth/login"),
+		cliAuthExchangePath: fallback(opts.CliAuthExchangePath, "/api/cli/auth/exchange"),
+		sessionRefreshPath:  fallback(opts.SessionRefreshPath, "/api/auth/get-session"),
 	}
 }
 
@@ -161,8 +180,17 @@ func (c *Client) SessionCookie() string {
 	return c.sessionCookie
 }
 
+func (c *Client) AuthTokenType() string {
+	return c.authTokenType
+}
+
 func (c *Client) SessionExpiresAt() time.Time {
 	return c.sessionExpiresAt
+}
+
+func (c *Client) SetAuthToken(token, tokenType string) {
+	c.sessionToken = token
+	c.authTokenType = fallback(strings.TrimSpace(tokenType), "cookie")
 }
 
 func (c *Client) SyncSession(ctx context.Context) error {
@@ -181,6 +209,35 @@ func (c *Client) BrowserLoginURL(callbackURL string) (string, error) {
 	q.Set("redirect_uri", callbackURL)
 	u.RawQuery = q.Encode()
 	return u.String(), nil
+}
+
+func (c *Client) ExchangeCliAuth(
+	ctx context.Context,
+	req ExchangeCliAuthRequest,
+) (ExchangeCliAuthResponse, error) {
+	res, err := c.do(ctx, http.MethodPost, c.cliAuthExchangePath, req, true)
+	if err != nil {
+		return ExchangeCliAuthResponse{}, err
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode >= 300 {
+		body, _ := io.ReadAll(res.Body)
+		return ExchangeCliAuthResponse{}, fmt.Errorf(
+			"cli auth exchange failed: status=%d body=%s",
+			res.StatusCode,
+			strings.TrimSpace(string(body)),
+		)
+	}
+
+	var out ExchangeCliAuthResponse
+	if err := json.NewDecoder(res.Body).Decode(&out); err != nil {
+		return ExchangeCliAuthResponse{}, err
+	}
+	if strings.TrimSpace(out.CliToken) == "" {
+		return ExchangeCliAuthResponse{}, errors.New("cli auth exchange returned empty cliToken")
+	}
+	return out, nil
 }
 
 func (c *Client) WhoAmI(ctx context.Context) (WhoAmIResponse, error) {
@@ -279,7 +336,8 @@ func (c *Client) Search(ctx context.Context, req SearchRequest) (SearchResponse,
 		searchPath += "?" + encoded
 	}
 
-	res, err := c.do(ctx, http.MethodGet, searchPath, nil, false)
+	withSession := strings.TrimSpace(c.sessionToken) != ""
+	res, err := c.do(ctx, http.MethodGet, searchPath, nil, withSession)
 	if err != nil {
 		return SearchResponse{}, err
 	}
@@ -325,7 +383,7 @@ func (c *Client) do(ctx context.Context, method, path string, body any, withSess
 		c.captureSessionCookie(res)
 	}
 
-	if withSession && res.StatusCode == http.StatusUnauthorized {
+	if withSession && res.StatusCode == http.StatusUnauthorized && c.authTokenType != "bearer" {
 		_ = res.Body.Close()
 		if err := c.refreshSession(ctx, true); err != nil {
 			return nil, err
@@ -354,8 +412,12 @@ func (c *Client) doRequest(ctx context.Context, method, path string, payload []b
 	req.Header.Set("Content-Type", "application/json")
 
 	if withSession {
-		for _, cookieName := range c.sessionCookieCandidates() {
-			req.AddCookie(&http.Cookie{Name: cookieName, Value: c.sessionToken})
+		if c.authTokenType == "bearer" {
+			req.Header.Set("Authorization", "Bearer "+c.sessionToken)
+		} else {
+			for _, cookieName := range c.sessionCookieCandidates() {
+				req.AddCookie(&http.Cookie{Name: cookieName, Value: c.sessionToken})
+			}
 		}
 	}
 
@@ -365,6 +427,12 @@ func (c *Client) doRequest(ctx context.Context, method, path string, payload []b
 func (c *Client) ensureSession(ctx context.Context) error {
 	if c.sessionToken == "" {
 		return errors.New("not authenticated; run openspend auth login")
+	}
+	if c.authTokenType == "bearer" {
+		if !c.sessionExpiresAt.IsZero() && !time.Now().Before(c.sessionExpiresAt) {
+			return errSessionExpired
+		}
+		return nil
 	}
 
 	now := time.Now()

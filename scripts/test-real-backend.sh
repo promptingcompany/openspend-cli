@@ -160,11 +160,11 @@ printf '%s\n' "${agent_output}" | grep -F "external_key=${agent_key}" >/dev/null
   fail "agent create output missing expected external key"
 }
 
-echo "[7/7] Verifying created subject appears in whoami"
-whoami_after="$(run_cli whoami)"
-printf '%s\n' "${whoami_after}" | grep -F "key=${agent_key}" >/dev/null || {
-  printf '%s\n' "${whoami_after}" >&2
-  fail "whoami output missing newly created agent key"
+echo "[7/7] Verifying created subject appears in dashboard agent list"
+agents_after="$(run_cli dashboard agent list)"
+printf '%s\n' "${agents_after}" | grep -F "key=${agent_key}" >/dev/null || {
+  printf '%s\n' "${agents_after}" >&2
+  fail "agent list output missing newly created agent key"
 }
 
 echo "PASS: openspend-cli integration succeeded against ${OPENSPEND_MARKETPLACE_BASE_URL}"

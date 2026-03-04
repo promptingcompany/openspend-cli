@@ -28,13 +28,15 @@ func newWhoAmICmd() *cobra.Command {
 				email = *res.User.Email
 			}
 			fmt.Fprintf(cmd.OutOrStdout(), "User: %s (%s)\n", res.User.ID, email)
-			switch cfg.Auth.LoginAs {
+
+			identity := inferAuthIdentity(cfg.Auth.AuthTokenType, cfg.Auth.SessionToken)
+			switch identity.LoginAs {
 			case config.AuthLoginAsAgent:
 				fmt.Fprintf(
 					cmd.OutOrStdout(),
 					"CLI identity: agent (key=%s name=%s)\n",
-					cfg.Auth.ActiveSubjectKey,
-					cfg.Auth.ActiveSubjectName,
+					identity.SubjectKey,
+					identity.SubjectName,
 				)
 			default:
 				fmt.Fprintln(cmd.OutOrStdout(), "CLI identity: admin (self)")

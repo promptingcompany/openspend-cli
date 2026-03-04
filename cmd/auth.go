@@ -102,13 +102,9 @@ func newAuthLoginCmd() *cobra.Command {
 			}
 
 			client.SetAuthToken(exchangeRes.CliToken, config.AuthTokenBearer)
-			client.SetAuthContext(exchangeRes.LoginAs, subjectKey)
 
 			cfg.Auth.SessionToken = exchangeRes.CliToken
 			cfg.Auth.AuthTokenType = config.AuthTokenBearer
-			cfg.Auth.LoginAs = exchangeRes.LoginAs
-			cfg.Auth.ActiveSubjectKey = subjectKey
-			cfg.Auth.ActiveSubjectName = subjectName
 			if exchangeRes.ExpiresAt != nil {
 				cfg.Auth.SessionExpiresAt = exchangeRes.ExpiresAt.UTC()
 			}

@@ -22,8 +22,6 @@ type Options struct {
 	AuthTokenType       string
 	SessionCookie       string
 	SessionExpiresAt    time.Time
-	LoginAs             string
-	ActiveSubjectKey    string
 	WhoAmIPath          string
 	PolicyInitPath      string
 	AgentPath           string
@@ -40,8 +38,6 @@ type Client struct {
 	authTokenType       string
 	sessionCookie       string
 	sessionExpiresAt    time.Time
-	loginAs             string
-	activeSubjectKey    string
 	whoAmIPath          string
 	policyPath          string
 	agentPath           string
@@ -162,8 +158,6 @@ func New(opts Options) *Client {
 		authTokenType:       fallback(opts.AuthTokenType, "cookie"),
 		sessionCookie:       fallback(opts.SessionCookie, "better-auth.session_token"),
 		sessionExpiresAt:    opts.SessionExpiresAt,
-		loginAs:             fallback(opts.LoginAs, "self"),
-		activeSubjectKey:    strings.TrimSpace(opts.ActiveSubjectKey),
 		whoAmIPath:          fallback(opts.WhoAmIPath, "/api/cli/whoami"),
 		policyPath:          fallback(opts.PolicyInitPath, "/api/cli/policy/init"),
 		agentPath:           fallback(opts.AgentPath, "/api/cli/agent"),
@@ -192,19 +186,6 @@ func (c *Client) AuthTokenType() string {
 
 func (c *Client) SessionExpiresAt() time.Time {
 	return c.sessionExpiresAt
-}
-
-func (c *Client) LoginAs() string {
-	return c.loginAs
-}
-
-func (c *Client) ActiveSubjectKey() string {
-	return c.activeSubjectKey
-}
-
-func (c *Client) SetAuthContext(loginAs, activeSubjectKey string) {
-	c.loginAs = fallback(strings.TrimSpace(loginAs), "self")
-	c.activeSubjectKey = strings.TrimSpace(activeSubjectKey)
 }
 
 func (c *Client) SetAuthToken(token, tokenType string) {

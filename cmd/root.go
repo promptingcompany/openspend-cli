@@ -70,8 +70,6 @@ func clientFromConfig(cfg config.Config) *api.Client {
 		AuthTokenType:       cfg.Auth.AuthTokenType,
 		SessionCookie:       cfg.Auth.SessionCookie,
 		SessionExpiresAt:    cfg.Auth.SessionExpiresAt,
-		LoginAs:             cfg.Auth.LoginAs,
-		ActiveSubjectKey:    cfg.Auth.ActiveSubjectKey,
 		WhoAmIPath:          cfg.Marketplace.WhoAmIPath,
 		PolicyInitPath:      cfg.Marketplace.PolicyInitPath,
 		AgentPath:           cfg.Marketplace.AgentPath,
@@ -104,24 +102,6 @@ func persistAuthFromClient(cfg *config.Config, client *api.Client) error {
 		cfg.Auth.AuthTokenType = client.AuthTokenType()
 		updated = true
 	}
-	if cfg.Auth.LoginAs != client.LoginAs() {
-		cfg.Auth.LoginAs = client.LoginAs()
-		updated = true
-	}
-	if cfg.Auth.ActiveSubjectKey != client.ActiveSubjectKey() {
-		cfg.Auth.ActiveSubjectKey = client.ActiveSubjectKey()
-		updated = true
-	}
-	if cfg.Auth.LoginAs != config.AuthLoginAsAgent {
-		if cfg.Auth.ActiveSubjectName != "" {
-			cfg.Auth.ActiveSubjectName = ""
-			updated = true
-		}
-		if cfg.Auth.ActiveSubjectKey != "" {
-			cfg.Auth.ActiveSubjectKey = ""
-			updated = true
-		}
-	}
 	if !updated {
 		return nil
 	}
@@ -134,7 +114,8 @@ func detectConfiguredRole() string {
 		return config.AuthLoginAsSelf
 	}
 	config.ApplyEnvOverrides(&cfg)
-	if cfg.Auth.LoginAs == config.AuthLoginAsAgent && strings.TrimSpace(cfg.Auth.SessionToken) != "" {
+	identity := inferAuthIdentity(cfg.Auth.AuthTokenType, cfg.Auth.SessionToken)
+	if identity.LoginAs == config.AuthLoginAsAgent {
 		return config.AuthLoginAsAgent
 	}
 	return config.AuthLoginAsSelf

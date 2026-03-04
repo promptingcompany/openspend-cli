@@ -122,7 +122,7 @@ Configurable environment variables:
 - After login, CLI prompts for identity mode: `admin (self)` or one of your active agents.
 - Selected identity is encoded into a server-signed CLI token used for authenticated requests.
 - In `agent` mode, dashboard commands are hidden; log in as `self` to manage policies/agents.
-- Identity mode and selected agent are persisted from `auth login` and are not overridable via CLI env vars.
+- CLI does not persist separate `login_as`/subject fields; identity is inferred from the signed token claims.
 - Changing identity requires running `openspend auth login` again.
 - CLI stores settings and session token in `~/.config/openspend/config.toml` (TOML codec).
 - CLI now also stores session expiry metadata and refreshes session state automatically during authenticated calls.
@@ -155,8 +155,5 @@ cli_auth_exchange_path = "/api/cli/auth/exchange"
 auth_token_type = "bearer"
 session_cookie = "better-auth.session_token"
 session_refresh_path = "/api/auth/get-session"
-login_as = "self"
-active_subject_key = ""
-active_subject_name = ""
 session_token = ""
 ```

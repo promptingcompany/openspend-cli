@@ -39,9 +39,6 @@ type AuthConfig struct {
 	SessionCookie       string    `toml:"session_cookie"`
 	SessionExpiresAt    time.Time `toml:"session_expires_at,omitempty"`
 	SessionRefreshPath  string    `toml:"session_refresh_path"`
-	LoginAs             string    `toml:"login_as"`
-	ActiveSubjectKey    string    `toml:"active_subject_key,omitempty"`
-	ActiveSubjectName   string    `toml:"active_subject_name,omitempty"`
 }
 
 type Config struct {
@@ -64,7 +61,6 @@ func defaults() Config {
 			AuthTokenType:       AuthTokenCookie,
 			SessionCookie:       "better-auth.session_token",
 			SessionRefreshPath:  "/api/auth/get-session",
-			LoginAs:             AuthLoginAsSelf,
 		},
 	}
 }
@@ -203,20 +199,6 @@ func applyDefaults(cfg *Config) {
 	}
 	if cfg.Auth.SessionRefreshPath == "" {
 		cfg.Auth.SessionRefreshPath = def.Auth.SessionRefreshPath
-	}
-	cfg.Auth.LoginAs = normalizeLoginAs(cfg.Auth.LoginAs)
-	if cfg.Auth.LoginAs != AuthLoginAsAgent {
-		cfg.Auth.ActiveSubjectKey = ""
-		cfg.Auth.ActiveSubjectName = ""
-	}
-}
-
-func normalizeLoginAs(value string) string {
-	switch value {
-	case AuthLoginAsAgent:
-		return AuthLoginAsAgent
-	default:
-		return AuthLoginAsSelf
 	}
 }
 

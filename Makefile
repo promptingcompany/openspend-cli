@@ -23,6 +23,7 @@ cli-test-loop: cli-build
 	./$(CLI_BIN) dashboard --help
 	./$(CLI_BIN) dashboard policy init --help
 	./$(CLI_BIN) dashboard policy list --help
+	./$(CLI_BIN) dashboard policy describe --help
 	./$(CLI_BIN) dashboard agent create --help
 	./$(CLI_BIN) dashboard agent update --help
 	./$(CLI_BIN) dashboard agent list --help

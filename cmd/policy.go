@@ -16,6 +16,7 @@ func newPolicyCmd() *cobra.Command {
 	}
 	policyCmd.AddCommand(newPolicyInitCmd())
 	policyCmd.AddCommand(newPolicyListCmd())
+	policyCmd.AddCommand(newPolicyDescribeCmd())
 	return policyCmd
 }
 
@@ -163,6 +164,114 @@ func newPolicyListCmd() *cobra.Command {
 				)
 			}
 			fmt.Fprintf(cmd.OutOrStdout(), "Total policies: %d\n", len(keys))
+			return nil
+		},
+	}
+}
+
+func newPolicyDescribeCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "describe <policy-id>",
+		Short: "Describe a policy by ID",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			policyID := strings.TrimSpace(args[0])
+			if policyID == "" {
+				return fmt.Errorf("policy ID is required")
+			}
+
+			cfg := mustLoadConfig()
+			client := clientFromConfig(cfg)
+
+			res, err := client.WhoAmI(cmd.Context())
+			if err != nil {
+				return err
+			}
+			if err := persistAuthFromClient(&cfg, client); err != nil {
+				return err
+			}
+
+			type policySubject struct {
+				ID          string
+				ExternalKey string
+				DisplayName string
+				Kind        string
+				Status      string
+				Precedence  string
+			}
+
+			matches := make([]policySubject, 0)
+			policyName := ""
+			policyMode := ""
+
+			for _, subject := range res.Subjects {
+				if subject.PolicyID == nil || strings.TrimSpace(*subject.PolicyID) != policyID {
+					continue
+				}
+
+				if policyName == "" && subject.PolicyName != nil {
+					policyName = strings.TrimSpace(*subject.PolicyName)
+				}
+				if policyMode == "" && subject.PolicyMode != nil {
+					policyMode = strings.TrimSpace(*subject.PolicyMode)
+				}
+
+				externalKey := ""
+				if subject.ExternalKey != nil {
+					externalKey = strings.TrimSpace(*subject.ExternalKey)
+				}
+				displayName := ""
+				if subject.DisplayName != nil {
+					displayName = strings.TrimSpace(*subject.DisplayName)
+				}
+				precedence := ""
+				if subject.Precedence != nil {
+					precedence = fmt.Sprintf("%d", *subject.Precedence)
+				}
+
+				matches = append(matches, policySubject{
+					ID:          subject.ID,
+					ExternalKey: externalKey,
+					DisplayName: displayName,
+					Kind:        subject.Kind,
+					Status:      subject.Status,
+					Precedence:  precedence,
+				})
+			}
+
+			if len(matches) == 0 {
+				return fmt.Errorf("policy %q not found or not visible to current user", policyID)
+			}
+
+			sort.Slice(matches, func(i, j int) bool {
+				if matches[i].ExternalKey == matches[j].ExternalKey {
+					return matches[i].ID < matches[j].ID
+				}
+				return matches[i].ExternalKey < matches[j].ExternalKey
+			})
+
+			if policyName == "" {
+				policyName = "(unnamed)"
+			}
+			if policyMode == "" {
+				policyMode = "unknown"
+			}
+
+			fmt.Fprintf(cmd.OutOrStdout(), "Policy: %s (%s)\n", policyName, policyID)
+			fmt.Fprintf(cmd.OutOrStdout(), "Mode: %s\n", policyMode)
+			fmt.Fprintf(cmd.OutOrStdout(), "Subjects: %d\n", len(matches))
+			for _, subject := range matches {
+				fmt.Fprintf(
+					cmd.OutOrStdout(),
+					"- id=%s key=%s name=%s kind=%s status=%s precedence=%s\n",
+					subject.ID,
+					subject.ExternalKey,
+					subject.DisplayName,
+					subject.Kind,
+					subject.Status,
+					subject.Precedence,
+				)
+			}
 			return nil
 		},
 	}

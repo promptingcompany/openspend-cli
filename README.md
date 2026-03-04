@@ -67,6 +67,7 @@ Publish a GitHub release for the tag to trigger binary build/upload automation.
 - `openspend auth logout`
 - `openspend dashboard policy init --buyer`
 - `openspend dashboard policy list`
+- `openspend dashboard policy describe <policy-id>`
 - `openspend dashboard agent create --external-key buyer-agent-1 --display-name "Buyer Agent"`
 - `openspend dashboard agent update --external-key buyer-agent-1 --display-name "Buyer Agent v2"`
 - `openspend dashboard agent list`

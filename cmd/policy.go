@@ -183,7 +183,7 @@ func newPolicyDescribeCmd() *cobra.Command {
 			cfg := mustLoadConfig()
 			client := clientFromConfig(cfg)
 
-			res, err := client.WhoAmI(cmd.Context())
+			res, err := client.GetPolicyDetails(cmd.Context(), policyID)
 			if err != nil {
 				return err
 			}
@@ -191,85 +191,105 @@ func newPolicyDescribeCmd() *cobra.Command {
 				return err
 			}
 
-			type policySubject struct {
-				ID          string
-				ExternalKey string
-				DisplayName string
-				Kind        string
-				Status      string
-				Precedence  string
-			}
-
-			matches := make([]policySubject, 0)
-			policyName := ""
-			policyMode := ""
-
-			for _, subject := range res.Subjects {
-				if subject.PolicyID == nil || strings.TrimSpace(*subject.PolicyID) != policyID {
-					continue
-				}
-
-				if policyName == "" && subject.PolicyName != nil {
-					policyName = strings.TrimSpace(*subject.PolicyName)
-				}
-				if policyMode == "" && subject.PolicyMode != nil {
-					policyMode = strings.TrimSpace(*subject.PolicyMode)
-				}
-
-				externalKey := ""
-				if subject.ExternalKey != nil {
-					externalKey = strings.TrimSpace(*subject.ExternalKey)
-				}
-				displayName := ""
-				if subject.DisplayName != nil {
-					displayName = strings.TrimSpace(*subject.DisplayName)
-				}
-				precedence := ""
-				if subject.Precedence != nil {
-					precedence = fmt.Sprintf("%d", *subject.Precedence)
-				}
-
-				matches = append(matches, policySubject{
-					ID:          subject.ID,
-					ExternalKey: externalKey,
-					DisplayName: displayName,
-					Kind:        subject.Kind,
-					Status:      subject.Status,
-					Precedence:  precedence,
-				})
-			}
-
-			if len(matches) == 0 {
-				return fmt.Errorf("policy %q not found or not visible to current user", policyID)
-			}
-
-			sort.Slice(matches, func(i, j int) bool {
-				if matches[i].ExternalKey == matches[j].ExternalKey {
-					return matches[i].ID < matches[j].ID
-				}
-				return matches[i].ExternalKey < matches[j].ExternalKey
-			})
-
+			policyName := strings.TrimSpace(res.Policy.Name)
 			if policyName == "" {
 				policyName = "(unnamed)"
 			}
-			if policyMode == "" {
-				policyMode = "unknown"
+			description := "(none)"
+			if res.Policy.Description != nil && strings.TrimSpace(*res.Policy.Description) != "" {
+				description = strings.TrimSpace(*res.Policy.Description)
+			}
+			minScore := "(none)"
+			if res.Summary.MinScore != nil {
+				minScore = fmt.Sprintf("%d", *res.Summary.MinScore)
+			}
+			budgetMax := "(none)"
+			if res.Summary.BudgetMax != nil && strings.TrimSpace(*res.Summary.BudgetMax) != "" {
+				budgetMax = strings.TrimSpace(*res.Summary.BudgetMax)
 			}
 
-			fmt.Fprintf(cmd.OutOrStdout(), "Policy: %s (%s)\n", policyName, policyID)
-			fmt.Fprintf(cmd.OutOrStdout(), "Mode: %s\n", policyMode)
-			fmt.Fprintf(cmd.OutOrStdout(), "Subjects: %d\n", len(matches))
-			for _, subject := range matches {
+			fmt.Fprintf(cmd.OutOrStdout(), "Policy: %s (%s)\n", policyName, res.Policy.ID)
+			fmt.Fprintf(cmd.OutOrStdout(), "Mode: %s\n", res.Policy.Mode)
+			fmt.Fprintf(cmd.OutOrStdout(), "Status: %s\n", res.Policy.Status)
+			fmt.Fprintf(cmd.OutOrStdout(), "Version: %d\n", res.Policy.Version)
+			fmt.Fprintf(cmd.OutOrStdout(), "Description: %s\n", description)
+			fmt.Fprintln(cmd.OutOrStdout(), "Summary:")
+			fmt.Fprintf(cmd.OutOrStdout(), "- min_score=%s\n", minScore)
+			fmt.Fprintf(cmd.OutOrStdout(), "- budget_max=%s\n", budgetMax)
+			fmt.Fprintf(cmd.OutOrStdout(), "- allow_assets=%s\n", strings.Join(res.Summary.AllowAssets, ","))
+			fmt.Fprintf(cmd.OutOrStdout(), "- allow_networks=%s\n", strings.Join(res.Summary.AllowNetworks, ","))
+			fmt.Fprintf(cmd.OutOrStdout(), "- deny_hosts=%s\n", strings.Join(res.Summary.DenyHosts, ","))
+			fmt.Fprintf(
+				cmd.OutOrStdout(),
+				"- require_identified_agent=%t\n",
+				res.Summary.RequireIdentifiedAgent,
+			)
+
+			fmt.Fprintf(cmd.OutOrStdout(), "Rules: %d\n", len(res.Rules))
+			for _, rule := range res.Rules {
+				resourceHost := ""
+				if rule.ResourceHost != nil {
+					resourceHost = strings.TrimSpace(*rule.ResourceHost)
+				}
+				asset := ""
+				if rule.Asset != nil {
+					asset = strings.TrimSpace(*rule.Asset)
+				}
+				network := ""
+				if rule.Network != nil {
+					network = strings.TrimSpace(*rule.Network)
+				}
+				ruleMinScore := ""
+				if rule.MinScore != nil {
+					ruleMinScore = fmt.Sprintf("%d", *rule.MinScore)
+				}
+				maxPrice := ""
+				if rule.MaxPrice != nil {
+					maxPrice = strings.TrimSpace(*rule.MaxPrice)
+				}
+				requireIdentified := ""
+				if rule.RequireIdentifiedAgent != nil {
+					requireIdentified = fmt.Sprintf("%t", *rule.RequireIdentifiedAgent)
+				}
+
 				fmt.Fprintf(
 					cmd.OutOrStdout(),
-					"- id=%s key=%s name=%s kind=%s status=%s precedence=%s\n",
-					subject.ID,
-					subject.ExternalKey,
-					subject.DisplayName,
-					subject.Kind,
-					subject.Status,
-					subject.Precedence,
+					"- id=%s effect=%s scope=%s enabled=%t priority=%d min_score=%s max_price=%s asset=%s network=%s resource_host=%s require_identified=%s\n",
+					rule.ID,
+					rule.Effect,
+					rule.Scope,
+					rule.Enabled,
+					rule.Priority,
+					ruleMinScore,
+					maxPrice,
+					asset,
+					network,
+					resourceHost,
+					requireIdentified,
+				)
+			}
+
+			fmt.Fprintf(cmd.OutOrStdout(), "Subject bindings: %d\n", len(res.SubjectBindings))
+			for _, binding := range res.SubjectBindings {
+				externalKey := ""
+				if binding.ExternalKey != nil {
+					externalKey = strings.TrimSpace(*binding.ExternalKey)
+				}
+				displayName := ""
+				if binding.DisplayName != nil {
+					displayName = strings.TrimSpace(*binding.DisplayName)
+				}
+
+				fmt.Fprintf(
+					cmd.OutOrStdout(),
+					"- subject_id=%s key=%s name=%s kind=%s status=%s precedence=%d active=%t\n",
+					binding.SubjectID,
+					externalKey,
+					displayName,
+					binding.Kind,
+					binding.Status,
+					binding.Precedence,
+					binding.Active,
 				)
 			}
 			return nil

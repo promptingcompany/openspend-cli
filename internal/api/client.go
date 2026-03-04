@@ -137,6 +137,53 @@ type SearchResultItem struct {
 	Score float64 `json:"score"`
 }
 
+type PolicyDetailsResponse struct {
+	Policy struct {
+		ID          string  `json:"id"`
+		OwnerUserID string  `json:"ownerUserId"`
+		Mode        string  `json:"mode"`
+		Name        string  `json:"name"`
+		Description *string `json:"description"`
+		Status      string  `json:"status"`
+		Version     int     `json:"version"`
+		CreatedAt   string  `json:"createdAt"`
+		UpdatedAt   string  `json:"updatedAt"`
+	} `json:"policy"`
+	Rules []struct {
+		ID                     string  `json:"id"`
+		Effect                 string  `json:"effect"`
+		Scope                  string  `json:"scope"`
+		ResourceHost           *string `json:"resourceHost"`
+		Asset                  *string `json:"asset"`
+		Network                *string `json:"network"`
+		MinScore               *int    `json:"minScore"`
+		MaxPrice               *string `json:"maxPrice"`
+		RequireIdentifiedAgent *bool   `json:"requireIdentifiedAgent"`
+		Priority               int     `json:"priority"`
+		Enabled                bool    `json:"enabled"`
+		ConditionJSON          any     `json:"conditionJson"`
+		CreatedAt              string  `json:"createdAt"`
+		UpdatedAt              string  `json:"updatedAt"`
+	} `json:"rules"`
+	SubjectBindings []struct {
+		SubjectID   string  `json:"subjectId"`
+		ExternalKey *string `json:"externalKey"`
+		DisplayName *string `json:"displayName"`
+		Kind        string  `json:"kind"`
+		Status      string  `json:"status"`
+		Precedence  int     `json:"precedence"`
+		Active      bool    `json:"active"`
+	} `json:"subjectBindings"`
+	Summary struct {
+		MinScore               *int     `json:"minScore"`
+		BudgetMax              *string  `json:"budgetMax"`
+		AllowAssets            []string `json:"allowAssets"`
+		AllowNetworks          []string `json:"allowNetworks"`
+		DenyHosts              []string `json:"denyHosts"`
+		RequireIdentifiedAgent bool     `json:"requireIdentifiedAgent"`
+	} `json:"summary"`
+}
+
 type ExchangeCliAuthRequest struct {
 	LoginAs            string `json:"loginAs"`
 	SubjectExternalKey string `json:"subjectExternalKey,omitempty"`
@@ -355,6 +402,35 @@ func (c *Client) Search(ctx context.Context, req SearchRequest) (SearchResponse,
 	var out SearchResponse
 	if err := json.NewDecoder(res.Body).Decode(&out); err != nil {
 		return SearchResponse{}, err
+	}
+	return out, nil
+}
+
+func (c *Client) GetPolicyDetails(ctx context.Context, policyID string) (PolicyDetailsResponse, error) {
+	policyID = strings.TrimSpace(policyID)
+	if policyID == "" {
+		return PolicyDetailsResponse{}, errors.New("policy ID is required")
+	}
+
+	path := "/api/policy/" + url.PathEscape(policyID)
+	res, err := c.do(ctx, http.MethodGet, path, nil, true)
+	if err != nil {
+		return PolicyDetailsResponse{}, err
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode >= 300 {
+		body, _ := io.ReadAll(io.LimitReader(res.Body, 4096))
+		return PolicyDetailsResponse{}, fmt.Errorf(
+			"policy describe failed: status=%d body=%s",
+			res.StatusCode,
+			strings.TrimSpace(string(body)),
+		)
+	}
+
+	var out PolicyDetailsResponse
+	if err := json.NewDecoder(res.Body).Decode(&out); err != nil {
+		return PolicyDetailsResponse{}, err
 	}
 	return out, nil
 }

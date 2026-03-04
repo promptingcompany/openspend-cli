@@ -26,6 +26,7 @@ func newAuthCmd() *cobra.Command {
 		Short: "Authentication commands",
 	}
 	authCmd.AddCommand(newAuthLoginCmd())
+	authCmd.AddCommand(newAuthLogoutCmd())
 	return authCmd
 }
 
@@ -137,6 +138,46 @@ func newAuthLoginCmd() *cobra.Command {
 		"Host to advertise in callback URL",
 	)
 	return cmd
+}
+
+func newAuthLogoutCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "logout",
+		Short: "Clear local CLI authentication session",
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			cfg := mustLoadConfig()
+			if !clearAuthSession(&cfg) {
+				fmt.Fprintln(cmd.OutOrStdout(), "Already logged out.")
+				return nil
+			}
+			if err := config.Save(cfg); err != nil {
+				return err
+			}
+			fmt.Fprintln(cmd.OutOrStdout(), "Logged out.")
+			return nil
+		},
+	}
+}
+
+func clearAuthSession(cfg *config.Config) bool {
+	if cfg == nil {
+		return false
+	}
+
+	changed := false
+	if strings.TrimSpace(cfg.Auth.SessionToken) != "" {
+		cfg.Auth.SessionToken = ""
+		changed = true
+	}
+	if !cfg.Auth.SessionExpiresAt.IsZero() {
+		cfg.Auth.SessionExpiresAt = time.Time{}
+		changed = true
+	}
+	if cfg.Auth.AuthTokenType != config.AuthTokenCookie {
+		cfg.Auth.AuthTokenType = config.AuthTokenCookie
+		changed = true
+	}
+	return changed
 }
 
 type loginIdentityChoice struct {

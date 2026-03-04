@@ -104,11 +104,7 @@ func newAuthLoginCmd() *cobra.Command {
 
 			client.SetAuthToken(exchangeRes.CliToken, config.AuthTokenBearer)
 
-			cfg.Auth.SessionToken = exchangeRes.CliToken
-			cfg.Auth.AuthTokenType = config.AuthTokenBearer
-			if exchangeRes.ExpiresAt != nil {
-				cfg.Auth.SessionExpiresAt = exchangeRes.ExpiresAt.UTC()
-			}
+			applyExchangedAuthConfig(&cfg, exchangeRes)
 			if err := persistAuthFromClient(&cfg, client); err != nil {
 				return err
 			}
@@ -195,7 +191,23 @@ func resolveLoginIdentityChoice(
 	who api.WhoAmIResponse,
 ) (loginIdentityChoice, error) {
 	agents := extractSelectableAgents(who)
+	if len(agents) == 0 {
+		return loginIdentityChoice{loginAs: config.AuthLoginAsSelf}, nil
+	}
 	return promptIdentityChoice(cmd, agents)
+}
+
+func applyExchangedAuthConfig(cfg *config.Config, exchangeRes api.ExchangeCliAuthResponse) {
+	if cfg == nil {
+		return
+	}
+	cfg.Auth.SessionToken = exchangeRes.CliToken
+	cfg.Auth.AuthTokenType = config.AuthTokenBearer
+	// Always reset first so a token is never paired with stale expiry metadata.
+	cfg.Auth.SessionExpiresAt = time.Time{}
+	if exchangeRes.ExpiresAt != nil {
+		cfg.Auth.SessionExpiresAt = exchangeRes.ExpiresAt.UTC()
+	}
 }
 
 func extractSelectableAgents(who api.WhoAmIResponse) []selectableAgent {

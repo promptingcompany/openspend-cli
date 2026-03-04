@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/promptingcompany/openspend-cli/internal/api"
 	"github.com/promptingcompany/openspend-cli/internal/config"
 )
 
@@ -44,4 +45,39 @@ func TestClearAuthSession(t *testing.T) {
 			t.Fatalf("expected no changes for logged-out config")
 		}
 	})
+}
+
+func TestResolveLoginIdentityChoice_NoAgentsDefaultsToSelf(t *testing.T) {
+	choice, err := resolveLoginIdentityChoice(nil, api.WhoAmIResponse{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if choice.loginAs != config.AuthLoginAsSelf {
+		t.Fatalf("expected loginAs=%q, got %q", config.AuthLoginAsSelf, choice.loginAs)
+	}
+	if choice.subjectKey != "" {
+		t.Fatalf("expected empty subject key, got %q", choice.subjectKey)
+	}
+}
+
+func TestApplyExchangedAuthConfig_ResetsStaleExpiry(t *testing.T) {
+	stale := time.Now().Add(2 * time.Hour).UTC()
+	cfg := config.Config{
+		Auth: config.AuthConfig{
+			SessionToken:     "old-token",
+			AuthTokenType:    config.AuthTokenCookie,
+			SessionExpiresAt: stale,
+		},
+	}
+
+	applyExchangedAuthConfig(&cfg, api.ExchangeCliAuthResponse{CliToken: "new-token"})
+	if cfg.Auth.SessionToken != "new-token" {
+		t.Fatalf("expected session token to be replaced")
+	}
+	if cfg.Auth.AuthTokenType != config.AuthTokenBearer {
+		t.Fatalf("expected auth token type to be bearer")
+	}
+	if !cfg.Auth.SessionExpiresAt.IsZero() {
+		t.Fatalf("expected stale expiry to be cleared when exchange has no expiresAt")
+	}
 }

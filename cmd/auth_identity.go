@@ -42,7 +42,10 @@ func inferAuthIdentity(authTokenType, token string) authIdentity {
 	if err := json.Unmarshal(payload, &claims); err != nil {
 		return defaultIdentity
 	}
-	if claims.Exp > 0 && !time.Now().Before(time.Unix(claims.Exp, 0)) {
+	if claims.Exp <= 0 {
+		return defaultIdentity
+	}
+	if !time.Now().Before(time.Unix(claims.Exp, 0)) {
 		return defaultIdentity
 	}
 	if claims.LoginAs != config.AuthLoginAsAgent {

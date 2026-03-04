@@ -11,9 +11,11 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 
+	"github.com/promptingcompany/openspend-cli/internal/api"
 	"github.com/promptingcompany/openspend-cli/internal/config"
 	"github.com/spf13/cobra"
 )
@@ -64,11 +66,35 @@ func newAuthLoginCmd() *cobra.Command {
 					err,
 				)
 			}
+
+			who, err := client.WhoAmI(cmd.Context())
+			if err != nil {
+				return fmt.Errorf("authenticated but failed to load subjects for identity selection: %w", err)
+			}
+			choice, err := resolveLoginIdentityChoice(cmd, who)
+			if err != nil {
+				return err
+			}
+			client.SetAuthContext(choice.loginAs, choice.subjectKey)
 			cfg.Auth.SessionToken = token
+			cfg.Auth.LoginAs = choice.loginAs
+			cfg.Auth.ActiveSubjectKey = choice.subjectKey
+			cfg.Auth.ActiveSubjectName = choice.subjectName
 			if err := persistAuthFromClient(&cfg, client); err != nil {
 				return err
 			}
 			fmt.Fprintf(cmd.OutOrStdout(), "Logged in successfully against %s\n", cfg.Marketplace.BaseURL)
+			switch choice.loginAs {
+			case config.AuthLoginAsAgent:
+				fmt.Fprintf(
+					cmd.OutOrStdout(),
+					"CLI identity: agent (%s key=%s)\n",
+					choice.subjectName,
+					choice.subjectKey,
+				)
+			default:
+				fmt.Fprintln(cmd.OutOrStdout(), "CLI identity: admin (self)")
+			}
 			return nil
 		},
 	}
@@ -83,6 +109,100 @@ func newAuthLoginCmd() *cobra.Command {
 		"Host to advertise in callback URL",
 	)
 	return cmd
+}
+
+type loginIdentityChoice struct {
+	loginAs     string
+	subjectKey  string
+	subjectName string
+}
+
+type selectableAgent struct {
+	externalKey string
+	displayName string
+}
+
+func resolveLoginIdentityChoice(
+	cmd *cobra.Command,
+	who api.WhoAmIResponse,
+) (loginIdentityChoice, error) {
+	agents := extractSelectableAgents(who)
+	return promptIdentityChoice(cmd, agents)
+}
+
+func extractSelectableAgents(who api.WhoAmIResponse) []selectableAgent {
+	agents := make([]selectableAgent, 0)
+	for _, subject := range who.Subjects {
+		if subject.Status != "active" {
+			continue
+		}
+		if subject.Kind != "agent" && subject.Kind != "anonymous_agent" {
+			continue
+		}
+		if subject.ExternalKey == nil || strings.TrimSpace(*subject.ExternalKey) == "" {
+			continue
+		}
+		name := strings.TrimSpace(*subject.ExternalKey)
+		if subject.DisplayName != nil && strings.TrimSpace(*subject.DisplayName) != "" {
+			name = strings.TrimSpace(*subject.DisplayName)
+		}
+		agents = append(agents, selectableAgent{
+			externalKey: strings.TrimSpace(*subject.ExternalKey),
+			displayName: name,
+		})
+	}
+	return agents
+}
+
+func promptIdentityChoice(
+	cmd *cobra.Command,
+	agents []selectableAgent,
+) (loginIdentityChoice, error) {
+	fmt.Fprintln(cmd.OutOrStdout(), "Choose CLI identity:")
+	fmt.Fprintln(cmd.OutOrStdout(), "  1) Admin (self)")
+	for i, agent := range agents {
+		fmt.Fprintf(
+			cmd.OutOrStdout(),
+			"  %d) Agent: %s (key=%s)\n",
+			i+2,
+			agent.displayName,
+			agent.externalKey,
+		)
+	}
+
+	reader := bufio.NewReader(os.Stdin)
+	maxChoice := len(agents) + 1
+	for {
+		fmt.Fprintf(cmd.OutOrStdout(), "Select identity [1-%d] (default 1): ", maxChoice)
+		raw, err := reader.ReadString('\n')
+		if err != nil && !errors.Is(err, io.EOF) {
+			return loginIdentityChoice{}, err
+		}
+		raw = strings.TrimSpace(raw)
+		if raw == "" {
+			return loginIdentityChoice{loginAs: config.AuthLoginAsSelf}, nil
+		}
+
+		selection, parseErr := strconv.Atoi(raw)
+		if parseErr != nil || selection < 1 || selection > maxChoice {
+			fmt.Fprintf(cmd.OutOrStdout(), "Please enter a number from 1 to %d.\n", maxChoice)
+			if errors.Is(err, io.EOF) {
+				return loginIdentityChoice{loginAs: config.AuthLoginAsSelf}, nil
+			}
+			continue
+		}
+
+		if selection == 1 {
+			return loginIdentityChoice{loginAs: config.AuthLoginAsSelf}, nil
+		}
+
+		agent := agents[selection-2]
+		return loginIdentityChoice{
+			loginAs:     config.AuthLoginAsAgent,
+			subjectKey:  agent.externalKey,
+			subjectName: agent.displayName,
+		}, nil
+	}
 }
 
 func runBrowserLogin(

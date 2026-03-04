@@ -1,4 +1,4 @@
-.PHONY: cli-build cli-run cli-clean cli-test-loop cli-test-local-openspend cli-test-real-backend
+.PHONY: cli-build cli-run cli-clean cli-test-loop cli-test-local-openspend cli-test-real-backend cli-test-openspend-ai
 
 CLI_BIN_DIR := bin
 CLI_BIN := $(CLI_BIN_DIR)/openspend
@@ -32,3 +32,6 @@ cli-test-local-openspend: cli-build
 
 cli-test-real-backend: cli-build
 	./scripts/test-real-backend.sh
+
+cli-test-openspend-ai: cli-build
+	OPENSPEND_MARKETPLACE_BASE_URL=$${OPENSPEND_MARKETPLACE_BASE_URL:-https://openspend.ai} OPENSPEND_ALLOW_SIGNUP=$${OPENSPEND_ALLOW_SIGNUP:-0} ./scripts/test-real-backend.sh

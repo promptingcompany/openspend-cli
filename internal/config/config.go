@@ -16,6 +16,11 @@ var deprecatedDefaultBaseURLs = map[string]struct{}{
 	"http://localhost:5555": {},
 }
 
+const (
+	AuthLoginAsSelf  = "self"
+	AuthLoginAsAgent = "agent"
+)
+
 type MarketplaceConfig struct {
 	BaseURL        string `toml:"base_url"`
 	WhoAmIPath     string `toml:"whoami_path"`
@@ -30,6 +35,9 @@ type AuthConfig struct {
 	SessionCookie      string    `toml:"session_cookie"`
 	SessionExpiresAt   time.Time `toml:"session_expires_at,omitempty"`
 	SessionRefreshPath string    `toml:"session_refresh_path"`
+	LoginAs            string    `toml:"login_as"`
+	ActiveSubjectKey   string    `toml:"active_subject_key,omitempty"`
+	ActiveSubjectName  string    `toml:"active_subject_name,omitempty"`
 }
 
 type Config struct {
@@ -50,6 +58,7 @@ func defaults() Config {
 			BrowserLoginPath:   "/api/cli/auth/login",
 			SessionCookie:      "better-auth.session_token",
 			SessionRefreshPath: "/api/auth/get-session",
+			LoginAs:            AuthLoginAsSelf,
 		},
 	}
 }
@@ -181,6 +190,20 @@ func applyDefaults(cfg *Config) {
 	}
 	if cfg.Auth.SessionRefreshPath == "" {
 		cfg.Auth.SessionRefreshPath = def.Auth.SessionRefreshPath
+	}
+	cfg.Auth.LoginAs = normalizeLoginAs(cfg.Auth.LoginAs)
+	if cfg.Auth.LoginAs != AuthLoginAsAgent {
+		cfg.Auth.ActiveSubjectKey = ""
+		cfg.Auth.ActiveSubjectName = ""
+	}
+}
+
+func normalizeLoginAs(value string) string {
+	switch value {
+	case AuthLoginAsAgent:
+		return AuthLoginAsAgent
+	default:
+		return AuthLoginAsSelf
 	}
 }
 

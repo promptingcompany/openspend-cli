@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 
+	"github.com/promptingcompany/openspend-cli/internal/config"
 	"github.com/spf13/cobra"
 )
 
@@ -27,6 +28,17 @@ func newWhoAmICmd() *cobra.Command {
 				email = *res.User.Email
 			}
 			fmt.Fprintf(cmd.OutOrStdout(), "User: %s (%s)\n", res.User.ID, email)
+			switch cfg.Auth.LoginAs {
+			case config.AuthLoginAsAgent:
+				fmt.Fprintf(
+					cmd.OutOrStdout(),
+					"CLI identity: agent (key=%s name=%s)\n",
+					cfg.Auth.ActiveSubjectKey,
+					cfg.Auth.ActiveSubjectName,
+				)
+			default:
+				fmt.Fprintln(cmd.OutOrStdout(), "CLI identity: admin (self)")
+			}
 			fmt.Fprintln(cmd.OutOrStdout(), "Subjects:")
 			if len(res.Subjects) == 0 {
 				fmt.Fprintln(cmd.OutOrStdout(), "  - none")

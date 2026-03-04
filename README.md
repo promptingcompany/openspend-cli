@@ -97,6 +97,14 @@ OPENSPEND_TEST_PASSWORD="***" \
 make cli-test-real-backend
 ```
 
+For the default production check against `openspend.ai`:
+
+```bash
+OPENSPEND_TEST_EMAIL="you@example.com" \
+OPENSPEND_TEST_PASSWORD="***" \
+make cli-test-openspend-ai
+```
+
 Configurable environment variables:
 
 - `OPENSPEND_MARKETPLACE_BASE_URL` (default `https://openspend.ai`)
@@ -111,6 +119,10 @@ Configurable environment variables:
 - `openspend auth login` asks `Open login page in your browser now? (Y/n)` before opening.
 - Use `-y` to open without prompt, or `-n` to skip opening and copy URL manually.
 - For automated/sandbox browser flows, set `--callback-host` (for example `192.0.0.2`) so callback is reachable.
+- After login, CLI prompts for identity mode: `admin (self)` or one of your active agents.
+- In `agent` mode, CLI includes `x-openspend-agent` with the selected `externalKey` on authenticated requests.
+- In `agent` mode, dashboard commands are hidden; log in as `self` to manage policies/agents.
+- Identity mode and selected agent are persisted from `auth login` and are not overridable via CLI env vars.
 - CLI stores settings and session token in `~/.config/openspend/config.toml` (TOML codec).
 - CLI now also stores session expiry metadata and refreshes session state automatically during authenticated calls.
 - Default marketplace URL: `https://openspend.ai`.
@@ -139,5 +151,8 @@ search_path = "/api/search"
 browser_login_path = "/api/cli/auth/login"
 session_cookie = "better-auth.session_token"
 session_refresh_path = "/api/auth/get-session"
+login_as = "self"
+active_subject_key = ""
+active_subject_name = ""
 session_token = ""
 ```

@@ -610,9 +610,6 @@ func startCloudflareQuickTunnel(
 		if proc.Process == nil {
 			return
 		}
-		if proc.ProcessState != nil && proc.ProcessState.Exited() {
-			return
-		}
 		_ = proc.Process.Kill()
 	}
 

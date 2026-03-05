@@ -438,6 +438,42 @@ func (c *Client) GetPolicyDetails(ctx context.Context, policyID string) (PolicyD
 	return out, nil
 }
 
+func (c *Client) UpdatePolicy(
+	ctx context.Context,
+	policyID string,
+	patch map[string]any,
+) (PolicyDetailsResponse, error) {
+	policyID = strings.TrimSpace(policyID)
+	if policyID == "" {
+		return PolicyDetailsResponse{}, errors.New("policy ID is required")
+	}
+	if len(patch) == 0 {
+		return PolicyDetailsResponse{}, errors.New("policy update payload is required")
+	}
+
+	path := strings.TrimRight(c.policyDetailsPath, "/") + "/" + url.PathEscape(policyID)
+	res, err := c.do(ctx, http.MethodPatch, path, patch, true)
+	if err != nil {
+		return PolicyDetailsResponse{}, err
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode >= 300 {
+		body, _ := io.ReadAll(io.LimitReader(res.Body, 4096))
+		return PolicyDetailsResponse{}, fmt.Errorf(
+			"policy update failed: status=%d body=%s",
+			res.StatusCode,
+			strings.TrimSpace(string(body)),
+		)
+	}
+
+	var out PolicyDetailsResponse
+	if err := json.NewDecoder(res.Body).Decode(&out); err != nil {
+		return PolicyDetailsResponse{}, err
+	}
+	return out, nil
+}
+
 func (c *Client) do(ctx context.Context, method, path string, body any, withSession bool) (*http.Response, error) {
 	var payload []byte
 	if body != nil {

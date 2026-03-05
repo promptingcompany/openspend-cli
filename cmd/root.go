@@ -72,6 +72,7 @@ func clientFromConfig(cfg config.Config) *api.Client {
 		SessionExpiresAt:    cfg.Auth.SessionExpiresAt,
 		WhoAmIPath:          cfg.Marketplace.WhoAmIPath,
 		PolicyInitPath:      cfg.Marketplace.PolicyInitPath,
+		PolicyDetailsPath:   cfg.Marketplace.PolicyDetailsPath,
 		AgentPath:           cfg.Marketplace.AgentPath,
 		SearchPath:          cfg.Marketplace.SearchPath,
 		BrowserAuthPath:     cfg.Auth.BrowserLoginPath,

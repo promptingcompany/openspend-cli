@@ -106,6 +106,7 @@ cat > "${tmp_home}/.config/openspend/config.toml" <<CFG
 base_url = "${OPENSPEND_MARKETPLACE_BASE_URL}"
 whoami_path = "/api/cli/whoami"
 policy_init_path = "/api/cli/policy/init"
+policy_details_path = "/api/policy"
 agent_path = "/api/cli/agent"
 search_path = "/api/search"
 

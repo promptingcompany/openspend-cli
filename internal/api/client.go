@@ -24,6 +24,7 @@ type Options struct {
 	SessionExpiresAt    time.Time
 	WhoAmIPath          string
 	PolicyInitPath      string
+	PolicyDetailsPath   string
 	AgentPath           string
 	SearchPath          string
 	BrowserAuthPath     string
@@ -40,6 +41,7 @@ type Client struct {
 	sessionExpiresAt    time.Time
 	whoAmIPath          string
 	policyPath          string
+	policyDetailsPath   string
 	agentPath           string
 	searchPath          string
 	authPath            string
@@ -207,6 +209,7 @@ func New(opts Options) *Client {
 		sessionExpiresAt:    opts.SessionExpiresAt,
 		whoAmIPath:          fallback(opts.WhoAmIPath, "/api/cli/whoami"),
 		policyPath:          fallback(opts.PolicyInitPath, "/api/cli/policy/init"),
+		policyDetailsPath:   fallback(opts.PolicyDetailsPath, "/api/policy"),
 		agentPath:           fallback(opts.AgentPath, "/api/cli/agent"),
 		searchPath:          fallback(opts.SearchPath, "/api/search"),
 		authPath:            fallback(opts.BrowserAuthPath, "/api/cli/auth/login"),
@@ -412,7 +415,7 @@ func (c *Client) GetPolicyDetails(ctx context.Context, policyID string) (PolicyD
 		return PolicyDetailsResponse{}, errors.New("policy ID is required")
 	}
 
-	path := "/api/policy/" + url.PathEscape(policyID)
+	path := strings.TrimRight(c.policyDetailsPath, "/") + "/" + url.PathEscape(policyID)
 	res, err := c.do(ctx, http.MethodGet, path, nil, true)
 	if err != nil {
 		return PolicyDetailsResponse{}, err

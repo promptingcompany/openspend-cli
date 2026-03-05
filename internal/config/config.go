@@ -24,11 +24,12 @@ const (
 )
 
 type MarketplaceConfig struct {
-	BaseURL        string `toml:"base_url"`
-	WhoAmIPath     string `toml:"whoami_path"`
-	PolicyInitPath string `toml:"policy_init_path"`
-	AgentPath      string `toml:"agent_path"`
-	SearchPath     string `toml:"search_path"`
+	BaseURL           string `toml:"base_url"`
+	WhoAmIPath        string `toml:"whoami_path"`
+	PolicyInitPath    string `toml:"policy_init_path"`
+	PolicyDetailsPath string `toml:"policy_details_path"`
+	AgentPath         string `toml:"agent_path"`
+	SearchPath        string `toml:"search_path"`
 }
 
 type AuthConfig struct {
@@ -49,11 +50,12 @@ type Config struct {
 func defaults() Config {
 	return Config{
 		Marketplace: MarketplaceConfig{
-			BaseURL:        defaultBaseURL,
-			WhoAmIPath:     "/api/cli/whoami",
-			PolicyInitPath: "/api/cli/policy/init",
-			AgentPath:      "/api/cli/agent",
-			SearchPath:     "/api/search",
+			BaseURL:           defaultBaseURL,
+			WhoAmIPath:        "/api/cli/whoami",
+			PolicyInitPath:    "/api/cli/policy/init",
+			PolicyDetailsPath: "/api/policy",
+			AgentPath:         "/api/cli/agent",
+			SearchPath:        "/api/search",
 		},
 		Auth: AuthConfig{
 			BrowserLoginPath:    "/api/cli/auth/login",
@@ -146,6 +148,9 @@ func ApplyEnvOverrides(cfg *Config) {
 	if v := os.Getenv("OPENSPEND_MARKETPLACE_POLICY_INIT_PATH"); v != "" {
 		cfg.Marketplace.PolicyInitPath = v
 	}
+	if v := os.Getenv("OPENSPEND_MARKETPLACE_POLICY_DETAILS_PATH"); v != "" {
+		cfg.Marketplace.PolicyDetailsPath = v
+	}
 	if v := os.Getenv("OPENSPEND_MARKETPLACE_AGENT_PATH"); v != "" {
 		cfg.Marketplace.AgentPath = v
 	}
@@ -180,6 +185,9 @@ func applyDefaults(cfg *Config) {
 	}
 	if cfg.Marketplace.PolicyInitPath == "" {
 		cfg.Marketplace.PolicyInitPath = def.Marketplace.PolicyInitPath
+	}
+	if cfg.Marketplace.PolicyDetailsPath == "" {
+		cfg.Marketplace.PolicyDetailsPath = def.Marketplace.PolicyDetailsPath
 	}
 	if cfg.Marketplace.AgentPath == "" {
 		cfg.Marketplace.AgentPath = def.Marketplace.AgentPath

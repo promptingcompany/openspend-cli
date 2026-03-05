@@ -1,39 +1,54 @@
 ---
 name: find-services
-description: Find and shortlist third-party services using OpenSpend CLI marketplace search. Use when asked to discover providers for a capability, compare options, and return a justified recommendation while relying on login/policy guardrails for filtering.
+description: Find and shortlist third-party services using OpenSpend CLI marketplace search. Use when asked to discover providers for a capability, compare options, and return a justified recommendation for discovery tasks only.
 ---
 
 # find-services
 
-Use OpenSpend CLI to discover external services. Assume account/login policy automatically applies reliability and spending guardrails.
+Use OpenSpend CLI to discover external services.
+This skill is discovery-only and does not set up payments, install tooling, or perform purchases.
 
-## Dependency on setup-services
+## Scope and safety boundaries
 
-Use `setup-services` first whenever install/update/auth/payment setup is needed:
+1. Do not run install or update commands as part of this skill.
+2. Do not configure `@coinbase/payments-mcp` in this skill.
+3. Do not request or store API keys, wallet secrets, or session tokens.
+4. If authentication is required to execute search, ask the user before running login commands.
+5. If the user asks for payment setup or paid invocation flows, hand off to `setup-services`.
 
-1. Install or update `openspend` CLI
-2. Authenticate CLI (`openspend auth login`, `openspend whoami`)
-3. Configure and verify `@coinbase/payments-mcp`
+## Credentials and environment
+
+1. Preferred path: run search with existing CLI session only.
+2. Optional credentialed path: OpenSpend user login via `openspend auth login` with explicit user confirmation.
+3. Required environment variables: none for discovery by default.
 
 ## Workflow
 
-1. Ensure CLI is ready.
+1. Verify CLI availability and session state without changing system configuration.
 
 ```bash
-openspend update
+command -v openspend
 openspend version
 openspend whoami
 ```
 
-If `whoami` fails due to auth/session, run:
+If `openspend` is missing or `whoami` fails:
+
+1. Stop search flow.
+2. Ask the user for confirmation before setup/login.
+3. Hand off setup/auth steps to `setup-services`.
+
+If user confirms login only, run:
 
 ```bash
 openspend auth login -y
 ```
 
+Only run login after user confirms.
+
 2. Translate user intent into a precise search query with explicit capability terms.
 
-3. Run search without manual constraint flags and use a default limit of 5.
+3. Run search with a default limit of 5.
 
 ```bash
 openspend search "<capability query>" --limit 5 --json
@@ -44,7 +59,7 @@ openspend search "<capability query>" --limit 5 --json
 When asked to "find a reliable service", produce:
 
 1. Up to 5 services in returned order
-2. A concise explanation that login/policy guardrails are assumed to be enforced upstream
+2. A concise explanation of why each service matches the requested capability
 3. No additional ranking commentary
 
 ## Recommended service usage
@@ -53,6 +68,6 @@ After presenting service options, include a short "recommended way to use" note 
 
 1. Start with a small validation call before scaling usage
 2. Capture request/response examples and expected success criteria
-3. Route payments through `@coinbase/payments-mcp` (configured via `setup-services`)
+3. If paid calls are needed, request explicit user approval before moving to payment setup via `setup-services`
 
-If payment is needed, explicitly ask the user to use `@coinbase/payments-mcp` for payment flows.
+If payment is needed, do not perform payment configuration in this skill.

@@ -1,26 +1,63 @@
 ---
 name: setup-services
-description: Set up core service tooling for OpenSpend workflows. Use when asked to install or update openspend-cli, authenticate OpenSpend CLI, and configure Coinbase payments-mcp with npx for payment-enabled service usage.
+description: Guided setup for OpenSpend CLI and optional Coinbase payments-mcp. This skill may run installers (`brew`, `curl`, `npx`) and may modify `~/.codex/mcp.json`, but only after explicit user approval.
 ---
 
 # Setup Services
 
-Install and configure both OpenSpend CLI and Coinbase Payments MCP, then verify authentication before service discovery or paid calls.
+Install and configure OpenSpend CLI, then optionally configure Coinbase Payments MCP for paid workflows.
+
+## Declared side effects
+
+This skill may perform persistent changes only with explicit user approval:
+
+1. Install or update CLI software (`brew install`, `openspend update`, `curl | sh`)
+2. Modify user MCP client config (`~/.codex/mcp.json`)
+3. Start package execution via `npx -y @coinbase/payments-mcp`
+4. Create local auth session state through `openspend auth login` and wallet sign-in flows
+
+This skill does not require elevated privileges by default and must not use `sudo` unless the user explicitly requests it.
+
+## Execution mode
+
+1. Default mode is advisory: provide commands and ask the user to run or approve them.
+2. Execution mode is allowed only after explicit user confirmation for each persistent change category:
+   - software install/update
+   - config file modification
+   - authentication/session creation
+
+## Trigger conditions and approval
+
+Use this skill when any of the following is true:
+
+1. `command -v openspend` fails
+2. `openspend whoami` fails due to auth/session state
+3. User explicitly asks to install, update, or authenticate OpenSpend CLI
+
+Before install, update, or authentication steps, get explicit user approval.
+
+## OpenSpend CLI preflight checks
+
+```bash
+command -v openspend || echo "openspend not installed"
+openspend version
+openspend whoami
+```
 
 ## OpenSpend CLI setup
 
 1. Install OpenSpend CLI.
 
-Method 1 (`curl` installer):
-
-```bash
-curl -fsSL https://openspend.ai/install | sh
-```
-
-Method 2 (`homebrew`):
+Preferred method (`homebrew`):
 
 ```bash
 brew install promptingcompany/tap/openspend
+```
+
+Alternative method (`curl` installer) only with explicit user approval:
+
+```bash
+curl -fsSL https://openspend.ai/install | sh
 ```
 
 2. Update existing install when `openspend` is already available.
@@ -35,6 +72,13 @@ openspend update
 openspend auth login -y
 openspend whoami
 ```
+
+## Credentials and auth state
+
+1. Required environment variables: none by default.
+2. Interactive authentication creates local session/token state managed by OpenSpend and wallet tooling.
+3. Do not ask users to paste secrets into chat when browser or wallet UI auth is available.
+4. Do not export, copy, or log token/session material.
 
 ## Payments MCP setup
 
@@ -59,6 +103,8 @@ npx -v
 ```
 
 3. Restart MCP client/session so the server is loaded.
+
+Only modify MCP config after explicit user approval.
 
 ## Payments authentication and verification
 

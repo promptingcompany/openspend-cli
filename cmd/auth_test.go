@@ -1,12 +1,72 @@
 package cmd
 
 import (
+	"bytes"
 	"testing"
 	"time"
 
 	"github.com/promptingcompany/openspend-cli/internal/api"
 	"github.com/promptingcompany/openspend-cli/internal/config"
 )
+
+func TestExtractCloudflareTunnelURL(t *testing.T) {
+	t.Run("extracts trycloudflare url from log line", func(t *testing.T) {
+		line := "INF | https://example-subdomain.trycloudflare.com registered"
+		got := extractCloudflareTunnelURL(line)
+		want := "https://example-subdomain.trycloudflare.com"
+		if got != want {
+			t.Fatalf("expected %q, got %q", want, got)
+		}
+	})
+
+	t.Run("returns empty when no tunnel url present", func(t *testing.T) {
+		if got := extractCloudflareTunnelURL("cloudflared starting"); got != "" {
+			t.Fatalf("expected empty result, got %q", got)
+		}
+	})
+}
+
+func TestCloudflaredInstallHint(t *testing.T) {
+	if got := cloudflaredInstallHint("darwin"); got != "Install cloudflared with: brew install cloudflared" {
+		t.Fatalf("unexpected darwin hint: %q", got)
+	}
+	if got := cloudflaredInstallHint("windows"); got != "Install cloudflared with: winget install --id Cloudflare.cloudflared" {
+		t.Fatalf("unexpected windows hint: %q", got)
+	}
+	if got := cloudflaredInstallHint("linux"); got == "" {
+		t.Fatalf("expected non-empty linux hint")
+	}
+}
+
+func TestPrintRedirectHostCompatibilityWarning(t *testing.T) {
+	t.Run("no warning for localhost callback", func(t *testing.T) {
+		var out bytes.Buffer
+		printRedirectHostCompatibilityWarning(
+			&out,
+			"https://openspend.ai",
+			"http://127.0.0.1:4321/callback",
+		)
+		if out.Len() != 0 {
+			t.Fatalf("expected no warning for localhost callback, got: %s", out.String())
+		}
+	})
+
+	t.Run("warns for different callback host", func(t *testing.T) {
+		var out bytes.Buffer
+		printRedirectHostCompatibilityWarning(
+			&out,
+			"https://openspend.ai",
+			"https://abc.trycloudflare.com/callback",
+		)
+		got := out.String()
+		if got == "" {
+			t.Fatalf("expected warning output, got empty")
+		}
+		if !bytes.Contains([]byte(got), []byte("redirect policy")) {
+			t.Fatalf("expected redirect policy warning, got: %s", got)
+		}
+	})
+}
 
 func TestClearAuthSession(t *testing.T) {
 	t.Run("clears active bearer session", func(t *testing.T) {

@@ -328,18 +328,25 @@ func (c *Client) PollCliDeviceAuth(
 	}
 	defer res.Body.Close()
 
-	if res.StatusCode >= 500 {
-		body, _ := io.ReadAll(res.Body)
+	body, readErr := io.ReadAll(res.Body)
+	if readErr != nil {
+		return CliDeviceAuthPollResponse{}, readErr
+	}
+
+	var out CliDeviceAuthPollResponse
+	decodeErr := json.Unmarshal(body, &out)
+	if res.StatusCode >= 300 {
+		if decodeErr == nil && strings.TrimSpace(out.Status) != "" {
+			return out, nil
+		}
 		return CliDeviceAuthPollResponse{}, fmt.Errorf(
 			"cli auth poll failed: status=%d body=%s",
 			res.StatusCode,
 			strings.TrimSpace(string(body)),
 		)
 	}
-
-	var out CliDeviceAuthPollResponse
-	if err := json.NewDecoder(res.Body).Decode(&out); err != nil {
-		return CliDeviceAuthPollResponse{}, err
+	if decodeErr != nil {
+		return CliDeviceAuthPollResponse{}, decodeErr
 	}
 	if strings.TrimSpace(out.Status) == "" {
 		return CliDeviceAuthPollResponse{}, errors.New("cli auth poll returned empty status")

@@ -66,8 +66,11 @@ Publish a GitHub release for the tag to trigger binary build/upload automation.
 - `openspend auth login`
 - `openspend auth logout`
 - `openspend dashboard policy init --buyer`
+- `openspend dashboard policy list`
+- `openspend dashboard policy describe <policy-id>`
 - `openspend dashboard agent create --external-key buyer-agent-1 --display-name "Buyer Agent"`
 - `openspend dashboard agent update --external-key buyer-agent-1 --display-name "Buyer Agent v2"`
+- `openspend dashboard agent list`
 - `openspend search "stable diffusion image generation"`
 - `openspend whoami`
 - `openspend update`
@@ -134,6 +137,7 @@ Configurable environment variables:
   - `OPENSPEND_MARKETPLACE_BASE_URL` (or legacy `OPENSPEND_BASE_URL`)
   - `OPENSPEND_MARKETPLACE_WHOAMI_PATH`
   - `OPENSPEND_MARKETPLACE_POLICY_INIT_PATH`
+  - `OPENSPEND_MARKETPLACE_POLICY_DETAILS_PATH`
   - `OPENSPEND_MARKETPLACE_AGENT_PATH`
   - `OPENSPEND_MARKETPLACE_SEARCH_PATH`
   - `OPENSPEND_AUTH_BROWSER_LOGIN_PATH`
@@ -148,6 +152,7 @@ Configurable environment variables:
 base_url = "https://openspend.ai"
 whoami_path = "/api/cli/whoami"
 policy_init_path = "/api/cli/policy/init"
+policy_details_path = "/api/policy"
 agent_path = "/api/cli/agent"
 search_path = "/api/search"
 

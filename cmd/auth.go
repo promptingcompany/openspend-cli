@@ -137,15 +137,26 @@ In legacy mode, optional remote/sandbox callback uses ` + "`--cloudflare-tunnel`
 			if err != nil {
 				return err
 			}
-			exchangeReq := api.ExchangeCliAuthRequest{
-				LoginAs: choice.loginAs,
+			exchangeRes := api.ExchangeCliAuthResponse{
+				CliToken: loginCfg.Auth.SessionToken,
+				LoginAs:  config.AuthLoginAsSelf,
 			}
-			if strings.TrimSpace(choice.subjectKey) != "" {
-				exchangeReq.SubjectExternalKey = strings.TrimSpace(choice.subjectKey)
+			if !loginCfg.Auth.SessionExpiresAt.IsZero() {
+				expires := loginCfg.Auth.SessionExpiresAt.UTC()
+				exchangeRes.ExpiresAt = &expires
 			}
-			exchangeRes, err := client.ExchangeCliAuth(cmd.Context(), exchangeReq)
-			if err != nil {
-				return err
+			shouldExchange := useLegacyBrowserCallback || choice.loginAs == config.AuthLoginAsAgent
+			if shouldExchange {
+				exchangeReq := api.ExchangeCliAuthRequest{
+					LoginAs: choice.loginAs,
+				}
+				if strings.TrimSpace(choice.subjectKey) != "" {
+					exchangeReq.SubjectExternalKey = strings.TrimSpace(choice.subjectKey)
+				}
+				exchangeRes, err = client.ExchangeCliAuth(cmd.Context(), exchangeReq)
+				if err != nil {
+					return err
+				}
 			}
 
 			subjectKey := ""
@@ -536,6 +547,8 @@ func runDeviceBrowserLogin(
 			return api.CliDeviceAuthPollResponse{}, errors.New("login was denied")
 		case "expired":
 			return api.CliDeviceAuthPollResponse{}, errors.New("login session expired; run openspend auth login again")
+		case "consumed":
+			return api.CliDeviceAuthPollResponse{}, errors.New("login session already consumed; run openspend auth login again")
 		default:
 			return api.CliDeviceAuthPollResponse{}, fmt.Errorf("unexpected login status: %q", pollRes.Status)
 		}

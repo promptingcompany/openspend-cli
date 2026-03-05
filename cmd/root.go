@@ -76,6 +76,8 @@ func clientFromConfig(cfg config.Config) *api.Client {
 		AgentPath:           cfg.Marketplace.AgentPath,
 		SearchPath:          cfg.Marketplace.SearchPath,
 		BrowserAuthPath:     cfg.Auth.BrowserLoginPath,
+		CliAuthStartPath:    cfg.Auth.CliAuthStartPath,
+		CliAuthPollPath:     cfg.Auth.CliAuthPollPath,
 		CliAuthExchangePath: cfg.Auth.CliAuthExchangePath,
 		SessionRefreshPath:  cfg.Auth.SessionRefreshPath,
 	})

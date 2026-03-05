@@ -28,6 +28,8 @@ type Options struct {
 	AgentPath           string
 	SearchPath          string
 	BrowserAuthPath     string
+	CliAuthStartPath    string
+	CliAuthPollPath     string
 	CliAuthExchangePath string
 	SessionRefreshPath  string
 }
@@ -45,6 +47,8 @@ type Client struct {
 	agentPath           string
 	searchPath          string
 	authPath            string
+	cliAuthStartPath    string
+	cliAuthPollPath     string
 	cliAuthExchangePath string
 	sessionRefreshPath  string
 }
@@ -199,6 +203,29 @@ type ExchangeCliAuthResponse struct {
 	SubjectDisplayName *string    `json:"subjectDisplayName"`
 }
 
+type CliDeviceAuthStartResponse struct {
+	LoginSessionID          string `json:"loginSessionId"`
+	PollToken               string `json:"pollToken"`
+	UserCode                string `json:"userCode"`
+	VerificationURI         string `json:"verificationUri"`
+	VerificationURIComplete string `json:"verificationUriComplete"`
+	ExpiresAt               string `json:"expiresAt"`
+	IntervalSeconds         int    `json:"intervalSeconds"`
+}
+
+type CliDeviceAuthPollRequest struct {
+	LoginSessionID string `json:"loginSessionId"`
+	PollToken      string `json:"pollToken"`
+}
+
+type CliDeviceAuthPollResponse struct {
+	Status            string `json:"status"`
+	CliToken          string `json:"cliToken"`
+	CliTokenExpiresAt string `json:"cliTokenExpiresAt"`
+	ExpiresAt         string `json:"expiresAt"`
+	IntervalSeconds   int    `json:"intervalSeconds"`
+}
+
 func New(opts Options) *Client {
 	return &Client{
 		baseURL:             strings.TrimRight(opts.BaseURL, "/"),
@@ -213,6 +240,8 @@ func New(opts Options) *Client {
 		agentPath:           fallback(opts.AgentPath, "/api/cli/agent"),
 		searchPath:          fallback(opts.SearchPath, "/api/search"),
 		authPath:            fallback(opts.BrowserAuthPath, "/api/cli/auth/login"),
+		cliAuthStartPath:    fallback(opts.CliAuthStartPath, "/api/cli/auth/start"),
+		cliAuthPollPath:     fallback(opts.CliAuthPollPath, "/api/cli/auth/poll"),
 		cliAuthExchangePath: fallback(opts.CliAuthExchangePath, "/api/cli/auth/exchange"),
 		sessionRefreshPath:  fallback(opts.SessionRefreshPath, "/api/auth/get-session"),
 	}
@@ -259,6 +288,63 @@ func (c *Client) BrowserLoginURL(callbackURL string) (string, error) {
 	q.Set("redirect_uri", callbackURL)
 	u.RawQuery = q.Encode()
 	return u.String(), nil
+}
+
+func (c *Client) StartCliDeviceAuth(ctx context.Context) (CliDeviceAuthStartResponse, error) {
+	res, err := c.do(ctx, http.MethodPost, c.cliAuthStartPath, nil, false)
+	if err != nil {
+		return CliDeviceAuthStartResponse{}, err
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode >= 300 {
+		body, _ := io.ReadAll(res.Body)
+		return CliDeviceAuthStartResponse{}, fmt.Errorf(
+			"cli auth start failed: status=%d body=%s",
+			res.StatusCode,
+			strings.TrimSpace(string(body)),
+		)
+	}
+
+	var out CliDeviceAuthStartResponse
+	if err := json.NewDecoder(res.Body).Decode(&out); err != nil {
+		return CliDeviceAuthStartResponse{}, err
+	}
+	if strings.TrimSpace(out.LoginSessionID) == "" ||
+		strings.TrimSpace(out.PollToken) == "" ||
+		strings.TrimSpace(out.VerificationURIComplete) == "" {
+		return CliDeviceAuthStartResponse{}, errors.New("cli auth start returned incomplete response")
+	}
+	return out, nil
+}
+
+func (c *Client) PollCliDeviceAuth(
+	ctx context.Context,
+	req CliDeviceAuthPollRequest,
+) (CliDeviceAuthPollResponse, error) {
+	res, err := c.do(ctx, http.MethodPost, c.cliAuthPollPath, req, false)
+	if err != nil {
+		return CliDeviceAuthPollResponse{}, err
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode >= 500 {
+		body, _ := io.ReadAll(res.Body)
+		return CliDeviceAuthPollResponse{}, fmt.Errorf(
+			"cli auth poll failed: status=%d body=%s",
+			res.StatusCode,
+			strings.TrimSpace(string(body)),
+		)
+	}
+
+	var out CliDeviceAuthPollResponse
+	if err := json.NewDecoder(res.Body).Decode(&out); err != nil {
+		return CliDeviceAuthPollResponse{}, err
+	}
+	if strings.TrimSpace(out.Status) == "" {
+		return CliDeviceAuthPollResponse{}, errors.New("cli auth poll returned empty status")
+	}
+	return out, nil
 }
 
 func (c *Client) ExchangeCliAuth(

@@ -34,6 +34,8 @@ type MarketplaceConfig struct {
 
 type AuthConfig struct {
 	BrowserLoginPath    string    `toml:"browser_login_path"`
+	CliAuthStartPath    string    `toml:"cli_auth_start_path"`
+	CliAuthPollPath     string    `toml:"cli_auth_poll_path"`
 	CliAuthExchangePath string    `toml:"cli_auth_exchange_path"`
 	SessionToken        string    `toml:"session_token,omitempty"`
 	AuthTokenType       string    `toml:"auth_token_type"`
@@ -59,6 +61,8 @@ func defaults() Config {
 		},
 		Auth: AuthConfig{
 			BrowserLoginPath:    "/api/cli/auth/login",
+			CliAuthStartPath:    "/api/cli/auth/start",
+			CliAuthPollPath:     "/api/cli/auth/poll",
 			CliAuthExchangePath: "/api/cli/auth/exchange",
 			AuthTokenType:       AuthTokenCookie,
 			SessionCookie:       "better-auth.session_token",
@@ -160,6 +164,12 @@ func ApplyEnvOverrides(cfg *Config) {
 	if v := os.Getenv("OPENSPEND_AUTH_BROWSER_LOGIN_PATH"); v != "" {
 		cfg.Auth.BrowserLoginPath = v
 	}
+	if v := os.Getenv("OPENSPEND_AUTH_CLI_AUTH_START_PATH"); v != "" {
+		cfg.Auth.CliAuthStartPath = v
+	}
+	if v := os.Getenv("OPENSPEND_AUTH_CLI_AUTH_POLL_PATH"); v != "" {
+		cfg.Auth.CliAuthPollPath = v
+	}
 	if v := os.Getenv("OPENSPEND_AUTH_CLI_AUTH_EXCHANGE_PATH"); v != "" {
 		cfg.Auth.CliAuthExchangePath = v
 	}
@@ -197,6 +207,12 @@ func applyDefaults(cfg *Config) {
 	}
 	if cfg.Auth.BrowserLoginPath == "" {
 		cfg.Auth.BrowserLoginPath = def.Auth.BrowserLoginPath
+	}
+	if cfg.Auth.CliAuthStartPath == "" {
+		cfg.Auth.CliAuthStartPath = def.Auth.CliAuthStartPath
+	}
+	if cfg.Auth.CliAuthPollPath == "" {
+		cfg.Auth.CliAuthPollPath = def.Auth.CliAuthPollPath
 	}
 	if cfg.Auth.CliAuthExchangePath == "" {
 		cfg.Auth.CliAuthExchangePath = def.Auth.CliAuthExchangePath

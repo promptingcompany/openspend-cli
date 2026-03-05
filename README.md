@@ -119,7 +119,15 @@ Configurable environment variables:
 
 ## Notes
 
-- `openspend auth login` opens the marketplace sign-in page in your browser and captures a local callback.
+- `openspend auth login` now uses a device-style browser approval flow by default (no localhost callback required).
+- Default flow prints a verification URL + code, opens browser if approved, and polls until approval.
+- Legacy callback mode is still available (deprecated): `openspend auth login --legacy-browser-callback`.
+- Optional tunnel callback mode (legacy only): `openspend auth login --legacy-browser-callback --cloudflare-tunnel`.
+- Install `cloudflared` for tunnel mode:
+  - macOS: `brew install cloudflared`
+  - Windows: `winget install --id Cloudflare.cloudflared`
+  - Linux: use official install docs: `https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/`
+- Tunnel mode also depends on backend redirect policy. If the server only allows `localhost`/`127.0.0.1` (or same-host redirects), non-local tunnel hosts will be rejected.
 - `openspend auth login` asks `Open login page in your browser now? (Y/n)` before opening.
 - Use `-y` to open without prompt, or `-n` to skip opening and copy URL manually.
 - For automated/sandbox browser flows, set `--callback-host` (for example `192.0.0.2`) so callback is reachable.
@@ -141,6 +149,8 @@ Configurable environment variables:
   - `OPENSPEND_MARKETPLACE_AGENT_PATH`
   - `OPENSPEND_MARKETPLACE_SEARCH_PATH`
   - `OPENSPEND_AUTH_BROWSER_LOGIN_PATH`
+  - `OPENSPEND_AUTH_CLI_AUTH_START_PATH`
+  - `OPENSPEND_AUTH_CLI_AUTH_POLL_PATH`
   - `OPENSPEND_AUTH_CLI_AUTH_EXCHANGE_PATH`
   - `OPENSPEND_AUTH_SESSION_COOKIE`
   - `OPENSPEND_AUTH_SESSION_REFRESH_PATH`
@@ -158,6 +168,8 @@ search_path = "/api/search"
 
 [auth]
 browser_login_path = "/api/cli/auth/login"
+cli_auth_start_path = "/api/cli/auth/start"
+cli_auth_poll_path = "/api/cli/auth/poll"
 cli_auth_exchange_path = "/api/cli/auth/exchange"
 auth_token_type = "cookie"
 session_cookie = "better-auth.session_token"

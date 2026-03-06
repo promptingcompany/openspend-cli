@@ -118,7 +118,8 @@ func invocationURLForItem(baseURL string, item api.SearchResultItem) string {
 	if invokeURL := strings.TrimSpace(item.InvokeURL); invokeURL != "" {
 		return invokeURL
 	}
-	if strings.TrimSpace(item.ID) == "" {
+	itemID := strings.TrimSpace(item.ID)
+	if itemID == "" {
 		return ""
 	}
 
@@ -127,9 +128,9 @@ func invocationURLForItem(baseURL string, item api.SearchResultItem) string {
 		return ""
 	}
 
-	base.Path = path.Join(strings.TrimSpace(base.Path), "api", "x402", "p", item.ID)
+	base.Path = path.Join(strings.TrimSpace(base.Path), "api", "x402", "p")
 	base.RawQuery = ""
 	base.Fragment = ""
 
-	return base.String()
+	return strings.TrimRight(base.String(), "/") + "/" + url.PathEscape(itemID)
 }

@@ -49,3 +49,13 @@ func TestInvocationURLForItem_InvalidInput(t *testing.T) {
 		t.Fatalf("expected empty invoke URL for empty item ID, got %q", got)
 	}
 }
+
+func TestInvocationURLForItem_EscapesPathSegments(t *testing.T) {
+	item := api.SearchResultItem{ID: "../dangerous/path"}
+
+	got := invocationURLForItem("https://openspend.ai", item)
+	want := "https://openspend.ai/api/x402/p/..%2Fdangerous%2Fpath"
+	if got != want {
+		t.Fatalf("expected escaped invoke URL %q, got %q", want, got)
+	}
+}

@@ -130,6 +130,7 @@ type SearchResponse struct {
 type SearchResultItem struct {
 	ID          string   `json:"id"`
 	ResourceURL string   `json:"resourceUrl"`
+	InvokeURL   string   `json:"invokeUrl,omitempty"`
 	Type        string   `json:"type"`
 	Networks    []string `json:"networks"`
 	Description string   `json:"description"`

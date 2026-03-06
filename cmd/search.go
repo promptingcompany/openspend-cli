@@ -3,6 +3,8 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
+	"net/url"
+	"path"
 	"strings"
 
 	"github.com/promptingcompany/openspend-cli/internal/api"
@@ -84,6 +86,9 @@ func newSearchCmd() *cobra.Command {
 				if strings.TrimSpace(item.Origin.URL) != "" {
 					fmt.Fprintf(cmd.OutOrStdout(), "   origin=%s\n", item.Origin.URL)
 				}
+				if invokeURL := invocationURLForItem(cfg.Marketplace.BaseURL, item); invokeURL != "" {
+					fmt.Fprintf(cmd.OutOrStdout(), "   invoke=%s\n", invokeURL)
+				}
 			}
 
 			return nil
@@ -107,4 +112,25 @@ func optionalFloat(value float64) *float64 {
 		return nil
 	}
 	return &value
+}
+
+func invocationURLForItem(baseURL string, item api.SearchResultItem) string {
+	if invokeURL := strings.TrimSpace(item.InvokeURL); invokeURL != "" {
+		return invokeURL
+	}
+	itemID := strings.TrimSpace(item.ID)
+	if itemID == "" {
+		return ""
+	}
+
+	base, err := url.Parse(strings.TrimSpace(baseURL))
+	if err != nil || strings.TrimSpace(base.Scheme) == "" || strings.TrimSpace(base.Host) == "" {
+		return ""
+	}
+
+	base.Path = path.Join(strings.TrimSpace(base.Path), "api", "x402", "p")
+	base.RawQuery = ""
+	base.Fragment = ""
+
+	return strings.TrimRight(base.String(), "/") + "/" + url.PathEscape(itemID)
 }
